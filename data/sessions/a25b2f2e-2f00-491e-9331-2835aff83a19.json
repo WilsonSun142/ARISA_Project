@@ -1,0 +1,42 @@
+{
+  "sid": "a25b2f2e-2f00-491e-9331-2835aff83a19",
+  "persona_key": "amy",
+  "persona": {
+    "key": "amy",
+    "name": "Amy Chen"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi there"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey."
+    }
+  ],
+  "self_rating": 6,
+  "elicitation": [
+    {
+      "attribute": "Primary stressor",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Living situation",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Help-seeking tendency",
+      "elicited": false,
+      "evidence": ""
+    }
+  ],
+  "model": "claude-sonnet-4-6",
+  "temperature": 1.0,
+  "started_at": "2026-08-22T06:53:47.084788+00:00",
+  "ended_at": "2026-08-22T06:53:58.347025+00:00",
+  "rated_at": "2026-08-22T06:53:56.582047+00:00",
+  "abandoned": true
+}

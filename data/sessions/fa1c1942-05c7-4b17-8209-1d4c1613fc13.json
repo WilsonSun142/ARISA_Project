@@ -1,0 +1,41 @@
+{
+  "sid": "fa1c1942-05c7-4b17-8209-1d4c1613fc13",
+  "persona_key": "ella",
+  "persona": {
+    "key": "ella",
+    "name": "Ella Lane"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "hello"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey. Hi."
+    }
+  ],
+  "self_rating": 1,
+  "elicitation": [
+    {
+      "attribute": "Primary stressor",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Living situation",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Help-seeking tendency",
+      "elicited": false,
+      "evidence": ""
+    }
+  ],
+  "model": "claude-sonnet-4-6",
+  "temperature": 1.0,
+  "started_at": "2026-08-22T06:38:36.237010+00:00",
+  "ended_at": "2026-08-22T06:38:54.864096+00:00",
+  "rated_at": "2026-08-22T06:38:52.860583+00:00"
+}

@@ -1,0 +1,41 @@
+{
+  "sid": "03810e9c-0d71-4757-8403-655c118e756f",
+  "persona_key": "jamie",
+  "persona": {
+    "key": "jamie",
+    "name": "Jamie Lee"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "testing"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey, yeah I'm here! Is this the advising session? I wasn't totally sure what to expect but I'm glad I came in."
+    }
+  ],
+  "self_rating": 6,
+  "elicitation": [
+    {
+      "attribute": "Primary stressor",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Living situation",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Help-seeking tendency",
+      "elicited": false,
+      "evidence": ""
+    }
+  ],
+  "model": "claude-sonnet-4-6",
+  "temperature": 1.0,
+  "started_at": "2026-08-22T06:03:55.085847+00:00",
+  "ended_at": "2026-08-22T06:04:16.963331+00:00",
+  "rated_at": "2026-08-22T06:04:15.124896+00:00"
+}

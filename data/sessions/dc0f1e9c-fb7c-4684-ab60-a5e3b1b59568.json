@@ -1,0 +1,41 @@
+{
+  "sid": "dc0f1e9c-fb7c-4684-ab60-a5e3b1b59568",
+  "persona_key": "chloe",
+  "persona": {
+    "key": "chloe",
+    "name": "Chloe Shaw"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey."
+    }
+  ],
+  "self_rating": 5,
+  "elicitation": [
+    {
+      "attribute": "Primary stressor",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Living situation",
+      "elicited": false,
+      "evidence": ""
+    },
+    {
+      "attribute": "Help-seeking tendency",
+      "elicited": false,
+      "evidence": ""
+    }
+  ],
+  "model": "claude-sonnet-4-6",
+  "temperature": 1.0,
+  "started_at": "2026-08-22T06:43:52.081123+00:00",
+  "ended_at": "2026-08-22T06:44:01.800618+00:00",
+  "rated_at": "2026-08-22T06:43:59.856947+00:00"
+}

@@ -40,7 +40,19 @@
     font-family: Georgia, serif;
     border-bottom: 2px solid transparent;
   }
+  
   .stage.active { color: #3B5F52; font-weight: 600; border-bottom-color: #3B5F52; }
+  .stage.done {
+    color: #3B5F52;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: #C3CDBE;
+    text-underline-offset: 3px;
+  }
+  .stage.done:hover {
+    background: #EBE7DA;
+    text-decoration-color: #3B5F52;
+  }
   .content { padding: 28px; }
   .hidden { display: none; }
   button {
@@ -69,6 +81,20 @@
   }
   button:disabled { opacity: 0.5; cursor: default; }
   button:focus-visible, input:focus-visible { outline: 2px solid #3B5F52; outline-offset: 2px; }
+  .back {
+    background: #fff;
+    border: 1px solid #DEDACB;
+    color: #6B6455;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 400;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+  .back:hover { border-color: #3B5F52; color: #3B5F52; }
+  
   .row {
     display: flex;
     justify-content: space-between;
@@ -172,6 +198,29 @@
   .persona-card .p-name { font-family: Georgia, serif; font-size: 15px; font-weight: 600; margin-bottom: 2px; }
   .persona-card .p-faculty { font-size: 12px; color: #6B6455; margin-bottom: 6px; }
   .persona-card .p-diff { font-size: 12px; color: #3B5F52; }
+
+  .group + .group {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid #EEE9DC;
+  }
+  .group-head {
+    font-family: Georgia, serif;
+    font-size: 16px;
+    margin: 0 0 3px;
+  }
+  .group-sub {
+    font-size: 13px;
+    color: #6B6455;
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  .persona-card.warmup { background: #F4F6F1; border-color: #C7D3C6; }
+  .persona-card.warmup:hover { border-color: #3B5F52; }
+  .persona-card.warmup .avatar { background: #D6E0D3; color: #3B5F52; }
+
+
+
   .warmup-tag {
     display: inline-block;
     font-size: 10px;
@@ -208,20 +257,34 @@
 
 <div class="panel">
   <div class="stages">
-    <div class="stage" id="stage-setup">1. Setup</div>
-    <div class="stage" id="stage-brief">2. Brief</div>
-    <div class="stage" id="stage-session">3. Session</div>
-    <div class="stage" id="stage-rating">4. Self-rating</div>
-    <div class="stage" id="stage-debrief">5. Debrief</div>
+    <div class="stage" id="stage-setup"   onclick="jumpTo('setup')">1. Setup</div>
+    <div class="stage" id="stage-brief"   onclick="jumpTo('brief')">2. Brief</div>
+    <div class="stage" id="stage-session" onclick="jumpTo('session')">3. Session</div>
+    <div class="stage" id="stage-rating"  onclick="jumpTo('rating')">4. Self-rating</div>
+    <div class="stage" id="stage-debrief" onclick="jumpTo('debrief')">5. Debrief</div>
   </div>
 
   <div class="content">
 
     <div id="view-setup">
-      <p style="color:#6B6455; font-size:14px; margin-bottom:18px; line-height:1.6; text-align:center;">
-        Choose a persona to practise an advising session with.
-      </p>
-      <div id="personaGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"></div>
+      <div class="group">
+        <h3 class="group-head">Start here</h3>
+        <p class="group-sub">
+          A short warm-up to get used to the interface. Jamie answers openly,
+          so nothing has to be drawn out.
+        </p>
+        <div id="warmupGrid"></div>
+      </div>
+
+      <div class="group">
+        <h3 class="group-head">The six at-risk personas</h3>
+        <p class="group-sub">
+          Each one withholds something different. The advising challenge is to
+          draw out what is actually going on.
+        </p>
+        <div id="personaGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"></div>
+      </div>
+
       <p id="setupError" class="error"></p>
     </div>
 
@@ -303,11 +366,98 @@ let currentPrompt = "";
 let currentKey = null;
 let selectedRating = null;
 
-function setStage(name) {
-  ["setup", "brief", "session", "rating", "debrief"].forEach(s => {
-    document.getElementById("stage-" + s).className = "stage" + (s === name ? " active" : "");
+let currentStage = "setup";
+let turnCount = 0;
+
+const STAGES = ["setup", "brief", "session", "rating", "debrief"];
+
+// Debrief is terminal: the self-rating was captured before the comparison
+// table, so returning would let an advisor revise it after seeing the result.
+function canLeave(stage) {
+  return stage !== "debrief";
+}
+
+function applyStage(name) {
+  currentStage = name;
+  const cur = STAGES.indexOf(name);
+  STAGES.forEach((s, i) => {
+    let cls = "stage";
+    if (s === name) cls += " active";
+    else if (i < cur && canLeave(name)) cls += " done";
+    document.getElementById("stage-" + s).className = cls;
     document.getElementById("view-" + s).className = s === name ? "" : "hidden";
   });
+}
+
+function setStage(name) {
+  applyStage(name);
+  history.pushState({ stage: name }, "");
+}
+
+// Jump back to an earlier stage. Moves through the browser's own history so
+// the two can never drift apart; popstate below does the actual work.
+function jumpTo(stage) {
+  const from = STAGES.indexOf(currentStage);
+  const to = STAGES.indexOf(stage);
+  if (to < 0 || to >= from || !canLeave(currentStage)) return;
+  history.go(to - from);
+}
+
+function goBack() {
+  const i = STAGES.indexOf(currentStage);
+  if (i > 0) jumpTo(STAGES[i - 1]);
+}
+
+// Single place the stage moves backwards, whether the advisor used a tab or
+// the browser's own back control.
+window.addEventListener("popstate", async (e) => {
+  const target = e.state && e.state.stage;
+  const from = STAGES.indexOf(currentStage);
+  const to = STAGES.indexOf(target);
+
+  if (!canLeave(currentStage) || to < 0 || to >= from) {
+    history.pushState({ stage: currentStage }, "");
+    return;
+  }
+
+  if (to === 0 && turnCount > 0) {
+    if (!confirm("This will end the session with " + currentPersona.name +
+                 " and discard the conversation. Continue?")) {
+      history.pushState({ stage: currentStage }, "");
+      return;
+    }
+  }
+
+  if (to === 0) {
+    await fetch("/api/reset", { method: "POST" });
+    clearSessionUI();
+  }
+  applyStage(target);
+});
+
+
+
+
+
+// at self-rating and debrief.
+window.addEventListener("beforeunload", (e) => {
+  if (turnCount > 0 && currentStage !== "debrief") {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+
+function clearSessionUI() {
+  currentPersona = null;
+  currentPrompt = "";
+  currentKey = null;
+  selectedRating = null;
+  turnCount = 0;
+  document.getElementById("chatBox").innerHTML =
+    '<p class="placeholder">Start the conversation, e.g. "Hi, how are you going?"</p>';
+  document.getElementById("endBtn").disabled = true;
+  document.getElementById("promptView").classList.add("hidden");
+  document.getElementById("setupError").textContent = "";
 }
 
 function avatarHTML(key, initials) {
@@ -320,18 +470,22 @@ async function loadPersonaGrid() {
   try {
     const res = await fetch("/api/personas");
     const list = await res.json();
-    document.getElementById("personaGrid").innerHTML = list.map(p => `
-      <button class="persona-card" onclick="selectPersona('${p.key}')">
+    const card = p => `
+      <button class="persona-card${p.warmup ? " warmup" : ""}" onclick="selectPersona('${p.key}')">
         <div class="avatar sm">${avatarHTML(p.key, p.initials)}</div>
         <div>
-          <div class="p-name">${p.id}. ${p.name}${p.warmup ? '<span class="warmup-tag">warm-up</span>' : ''}</div>
+          <div class="p-name">${p.warmup ? "" : p.id + ". "}${p.name}</div>
           <div class="p-faculty">${p.faculty}</div>
           <div class="p-diff">${p.differentiator}</div>
         </div>
-      </button>
-    `).join("");
+      </button>`;
+    document.getElementById("warmupGrid").innerHTML =
+      list.filter(p => p.warmup).map(card).join("");
+    document.getElementById("personaGrid").innerHTML =
+      list.filter(p => !p.warmup).map(card).join("");
   } catch (e) {
-    document.getElementById("setupError").textContent = "Could not load personas. Is the server running?";
+    document.getElementById("setupError").textContent =
+      "Could not load personas. Is the server running?";
   }
 }
 
@@ -350,6 +504,7 @@ async function selectPersona(key) {
   currentPrompt = data.system_prompt;
   currentKey = key;
   selectedRating = null;
+  turnCount = 0;
   renderBrief(data);
   setStage("brief");
 }
@@ -397,6 +552,7 @@ async function sendMessage() {
   input.value = "";
   addBubble(text, "user");
   document.getElementById("endBtn").disabled = false;
+  turnCount++;
 
   const chatBox = document.getElementById("chatBox");
   const typing = document.createElement("p");
@@ -507,20 +663,13 @@ async function showDebrief() {
 
 async function resetAll() {
   await fetch("/api/reset", { method: "POST" });
-  currentPersona = null;
-  currentPrompt = "";
-  currentKey = null;
-  selectedRating = null;
-  document.getElementById("chatBox").innerHTML =
-    '<p class="placeholder">Start the conversation, e.g. "Hi, how are you going?"</p>';
-  document.getElementById("endBtn").disabled = true;
-  document.getElementById("promptView").classList.add("hidden");
-  document.getElementById("setupError").textContent = "";
+  clearSessionUI();
   setStage("setup");
 }
 
 loadPersonaGrid();
-setStage("setup");
+applyStage("setup");
+history.replaceState({ stage: "setup" }, "");
 </script>
 
 </body>

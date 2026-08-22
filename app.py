@@ -508,7 +508,13 @@ Respond with ONLY a JSON array in exactly this form:
 def api_reset():
     sid = session.pop("sid", None)
     if sid:
-        SESSIONS.pop(sid, None)
+        state = SESSIONS.pop(sid, None)
+        # An abandoned session is still a result. Record it rather than
+        # dropping it, but only if the advisor actually said something.
+        if state and state["messages"]:
+            state["abandoned"] = True
+            state["ended_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            persist(state)
     return jsonify({"ok": True})
 
 
