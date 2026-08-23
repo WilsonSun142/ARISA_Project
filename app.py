@@ -131,7 +131,7 @@ PERSONAS = {
     },
     "dean": {
         "id": "D",
-        "name": "Dean Bell",
+        "name": "Dean Patel",
         "age": 22,
         "gender": "Man",
         "year": 2,
@@ -180,7 +180,7 @@ PERSONAS = {
     },
     "finn": {
         "id": "F",
-        "name": "Finn Cole",
+        "name": "Finn Nguyen",
         "age": 20,
         "gender": "Man",
         "year": 2,
