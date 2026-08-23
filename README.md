@@ -1,46 +1,56 @@
 # ARISA prototype
 
-A minimal, working demo of the ARISA advising simulation: persona generation,
-pre-session OLM brief, live chat with the simulated student, and a
-post-session elicitation debrief.
+At-risk Interactive Student Advisor-trainer. An advisor practises an
+advising session with an LLM-driven simulated at-risk student, then
+reviews what they drew out against the underlying learner model.
 
 ## Setup
 
 ```bash
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=your_key_here    # get one at console.anthropic.com
+export ANTHROPIC_API_KEY=your_key_here
 python app.py
 ```
 
-Then open http://localhost:5000 in your browser.
+Open http://localhost:5000.
 
-## What this demonstrates
+## Flow
 
-1. **Setup** — generates a randomised at-risk student persona from the
-   identity/trouble-area logic in `app.py` (`generate_persona()`).
-2. **Pre-session brief** — the two-layer OLM view: academic data visible,
-   personal context rows shown but redacted, matching the thesis design.
-3. **Advising session** — a live chat with the persona, powered by Claude.
-   Click "Show system prompt" to see exactly what's fixed for the persona
-   versus what it's instructed to reveal only when asked
-   (`build_system_prompt()` in `app.py`).
-4. **Debrief** — after ending the session, a second Claude call judges the
-   transcript against the persona's true profile and shows which attributes
-   the advisor successfully elicited.
+1. **Setup** — choose a persona. Jamie Lee is a warm-up persona for
+   familiarisation; the six others (Amy, Ben, Chloe, Dean, Ella, Finn) are
+   the validated set.
+2. **Brief** — academic data is shown; three personal-context attributes
+   (stressor, living situation, help-seeking tendency) are listed but
+   withheld.
+3. **Session** — live chat with the persona. "Show system prompt" reveals
+   what's fixed versus what the persona is instructed to disclose only
+   when asked (`build_system_prompt()` in `app.py`).
+4. **Self-rating** — a 7-point rating captured before any comparison data
+   is shown.
+5. **Debrief** — an LLM judge checks the transcript against the three
+   withheld attributes and reports what was drawn out.
 
 ## Files
 
-- `app.py` — Flask backend: persona generation, prompt construction, and the
-  three API routes (`/api/generate`, `/api/chat`, `/api/debrief`)
-- `templates/index.html` — single-page frontend, vanilla JS, no build step
+- `app.py` — Flask backend: fixed persona definitions (`PERSONAS`),
+  prompt construction, and API routes
+- `templates/index.html` — single-page frontend
+- `benchmark.py` — repeat-run consistency harness (see its own docstring)
 
 ## Notes
 
-- Only 8 of the trouble-area types are implemented in full; extend
-  `TROUBLE_AREAS` in `app.py` to add the remaining ones from the original
-  prompt spec.
-- Elicitation is checked via a single LLM judge call at the end of the
-  session, not live during the conversation.
-- Session state (persona + transcript) is stored server-side via Flask
-  session cookies — fine for a local demo, would need a proper session
-  store for multi-user deployment.
+- Personas are fixed, not randomly generated; see `PERSONAS` in `app.py`
+  for the seven identities and their profiles.
+- Session state is stored server-side, keyed by a session-id cookie —
+  chosen because a full transcript exceeds Flask's default 4KB
+  cookie-session limit.
+- Elicitation is checked via a single LLM judge call after the session,
+  not live during the conversation.
+- Deployed on AWS EC2 behind nginx; see deployment notes below.
+
+## Deployment
+
+Runs via systemd (`arisa.service`) with gunicorn pinned to one worker,
+since session state is held in-process. Environment variables (API key,
+Flask secret) are read from `/etc/arisa.env`. nginx proxies port 80 to
+gunicorn on 127.0.0.1:8000.
