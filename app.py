@@ -82,7 +82,7 @@ PERSONAS = {
     },
     "ben": {
         "id": "B",
-        "name": "Ben Reed",
+        "name": "Ben Clarke",
         "age": 21,
         "gender": "Man",
         "year": 3,
@@ -107,7 +107,7 @@ PERSONAS = {
     },
     "chloe": {
         "id": "C",
-        "name": "Chloe Shaw",
+        "name": "Chloe Bennett",
         "age": 20,
         "gender": "Woman",
         "year": 2,
@@ -155,7 +155,7 @@ PERSONAS = {
     },
     "ella": {
         "id": "E",
-        "name": "Ella Lane",
+        "name": "Ella Anderson",
         "age": 20,
         "gender": "Woman",
         "year": 2,
