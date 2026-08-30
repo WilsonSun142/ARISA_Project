@@ -307,7 +307,7 @@ def call_claude(system_prompt, messages, max_tokens=500, model=None, temperature
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         },
-        json={
+        data={
             "model": model or MODEL,
             "max_tokens": max_tokens,
             "temperature": TEMPERATURE if temperature is None else temperature,
