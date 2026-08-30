@@ -300,20 +300,21 @@ def call_claude(system_prompt, messages, max_tokens=500, model=None, temperature
         raise RuntimeError(
             "ANTHROPIC_API_KEY is not set. Run: export ANTHROPIC_API_KEY=your_key_here"
         )
+    payload = {
+        "model": model or MODEL,
+        "max_tokens": max_tokens,
+        "temperature": TEMPERATURE if temperature is None else temperature,
+        "system": system_prompt,
+        "messages": messages,
+    }
     resp = requests.post(
         ANTHROPIC_URL,
         headers={
             "x-api-key": ANTHROPIC_API_KEY,
             "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
+            "content-type": "application/json; charset=utf-8",
         },
-        data={
-            "model": model or MODEL,
-            "max_tokens": max_tokens,
-            "temperature": TEMPERATURE if temperature is None else temperature,
-            "system": system_prompt,
-            "messages": messages,
-        },
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         timeout=60,
     )
     resp.raise_for_status()
