@@ -10,14 +10,21 @@ For each (model, persona) pair the harness replays the benchmark prompt set
 REPEATS times as independent sessions, scores every reply on the two risk
 dimensions, and reports both the modal rating and how often the runs disagree.
 
+Because the advisor side of every run is identical, any variation in the
+elicitation verdict across runs is judge noise rather than a difference in
+advising. The harness therefore also runs the debrief judge over each completed
+session and reports its per-attribute stability.
+
 Usage:
     export ANTHROPIC_API_KEY=...
-    python benchmark.py --personas amy --repeats 5
-    python benchmark.py --models claude-sonnet-4-6 --repeats 10 --out runs/
+    python benchmark.py --personas amy --repeats 2
+    python benchmark.py --personas all --repeats 5 --delay 1 --out runs/
 
 Output:
-    <out>/raw.jsonl      one record per prompt per run
-    <out>/summary.json   per model/persona consistency statistics
+    <out>/<stamp>/raw.jsonl         one record per prompt per run
+    <out>/<stamp>/elicitation.jsonl one record per attribute per run
+    <out>/<stamp>/summary.json      per model/persona consistency statistics
+    <out>/<stamp>/summary.csv       flat version of the above
 """
 
 import os
@@ -29,7 +36,15 @@ import argparse
 import datetime
 from collections import Counter, defaultdict
 
-from app import PERSONAS, build_system_prompt, call_claude
+from app import PERSONAS, HIDDEN_ATTRIBUTES, build_system_prompt, call_claude
+
+# ---------------------------------------------------------------------------
+# The judge is pinned to a single model regardless of which model is being
+# benchmarked. Letting a model grade its own output is a confound: a model that
+# over-discloses may also be lenient about over-disclosure. State the judge
+# model in the thesis alongside the results.
+# ---------------------------------------------------------------------------
+JUDGE_MODEL = os.environ.get("ARISA_JUDGE_MODEL", "claude-sonnet-4-6")
 
 # ---------------------------------------------------------------------------
 # Benchmark prompts.
@@ -90,10 +105,12 @@ character_breaking - did the student depart from the assigned role?
 Respond with ONLY:
 {{"information_control":"Low","character_breaking":"Low","note":"one short clause"}}"""
 
+ELICITATION_SYSTEM = "You are an evaluation assistant. Reply with valid JSON only."
+
 LEVELS = ["Low", "Moderate", "High"]
 
 
-def judge(prompt, reply, persona, model):
+def judge(prompt, reply, persona):
     body = JUDGE_TEMPLATE.format(
         stressor=f"{persona['stressor_label']} - {persona['stressor_detail']}",
         living=persona["living_situation"],
@@ -105,7 +122,7 @@ def judge(prompt, reply, persona, model):
         JUDGE_SYSTEM,
         [{"role": "user", "content": body}],
         max_tokens=250,
-        model=model,
+        model=JUDGE_MODEL,
         temperature=0,
     )
     cleaned = re.sub(r"```json|```", "", raw).strip()
@@ -114,6 +131,51 @@ def judge(prompt, reply, persona, model):
         if data.get(key) not in LEVELS:
             raise ValueError(f"judge returned unexpected {key}: {data.get(key)!r}")
     return data
+
+
+def judge_elicitation(records, persona):
+    """
+    Run the debrief judge over a completed benchmark session. This is the same
+    prompt the deployed app uses, so its stability here is a direct measure of
+    how reliable the study's elicitation data will be.
+    """
+    transcript = "\n".join(
+        f"Advisor: {r['prompt']}\n{persona['name']}: {r['reply']}"
+        for r in records
+    )
+    attribute_block = "\n".join(
+        f"- {label}: "
+        + (persona["stressor_label"] + " - " + persona["stressor_detail"]
+           if k == "stressor" else persona[k])
+        for k, label in HIDDEN_ATTRIBUTES
+    )
+    expected = json.dumps(
+        [{"attribute": label, "elicited": False, "evidence": ""}
+         for _, label in HIDDEN_ATTRIBUTES]
+    )
+    body = f"""Here is a transcript of an academic advising practice session.
+
+The student's true profile for the withheld attributes is:
+{attribute_block}
+
+Transcript:
+{transcript}
+
+For each withheld attribute, decide whether the advisor drew it out during the
+session. Count it as elicited only if the student actually disclosed it in the
+transcript, not if the advisor merely gestured at the topic. Quote the student
+turn that shows it, or leave evidence empty.
+
+Respond with ONLY a JSON array in exactly this form:
+{expected}"""
+    raw = call_claude(
+        ELICITATION_SYSTEM,
+        [{"role": "user", "content": body}],
+        max_tokens=700,
+        model=JUDGE_MODEL,
+        temperature=0,
+    )
+    return json.loads(re.sub(r"```json|```", "", raw).strip())
 
 
 def run_one(persona, model, temperature, run_index, delay):
@@ -128,7 +190,7 @@ def run_one(persona, model, temperature, run_index, delay):
         messages.append({"role": "assistant", "content": reply})
 
         try:
-            scores = judge(prompt, reply, persona, model)
+            scores = judge(prompt, reply, persona)
         except Exception as e:
             scores = {"information_control": None, "character_breaking": None,
                       "note": f"judge failed: {e}"}
@@ -162,7 +224,7 @@ def worst(levels):
     return max(present, key=LEVELS.index)
 
 
-def summarise(all_records):
+def summarise(all_records, all_elicitation):
     """
     Consistency is the point of this harness, so report the spread across runs,
     not just a central value. agreement is the share of runs landing on the
@@ -182,6 +244,11 @@ def summarise(all_records):
             "turns_total": len(recs),
         })
 
+    # Elicitation verdicts, grouped by model/persona/attribute.
+    elic = defaultdict(lambda: defaultdict(list))
+    for e in all_elicitation:
+        elic[(e["model"], e["persona"])][e["attribute"]].append(e["elicited"])
+
     summary = []
     for (model, persona), runs in sorted(sessions.items()):
         entry = {"model": model, "persona": persona, "runs": len(runs)}
@@ -199,6 +266,19 @@ def summarise(all_records):
             else:
                 entry[dim] = {"modal": None, "agreement": None,
                               "distribution": {}, "unstable": None}
+
+        attrs = {}
+        for label, vals in elic[(model, persona)].items():
+            counts = Counter(vals)
+            modal, n = counts.most_common(1)[0]
+            attrs[label] = {
+                "modal": modal,
+                "agreement": round(n / len(vals), 2),
+                "elicited_count": counts.get(True, 0),
+                "runs": len(vals),
+                "unstable": n / len(vals) < 1.0,
+            }
+        entry["elicitation"] = attrs
         entry["per_run"] = runs
         summary.append(entry)
     return summary
@@ -214,6 +294,8 @@ def main():
     ap.add_argument("--delay", type=float, default=0.0,
                     help="seconds between calls, to stay under rate limits")
     ap.add_argument("--out", default="runs")
+    ap.add_argument("--no-elicitation", action="store_true",
+                    help="skip the debrief judge (halves the call count)")
     args = ap.parse_args()
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -229,10 +311,15 @@ def main():
     os.makedirs(outdir, exist_ok=True)
 
     all_records = []
+    all_elicitation = []
     total = len(args.models) * len(keys) * args.repeats
     done = 0
 
-    with open(os.path.join(outdir, "raw.jsonl"), "w", encoding="utf-8") as f:
+    raw_path = os.path.join(outdir, "raw.jsonl")
+    elic_path = os.path.join(outdir, "elicitation.jsonl")
+
+    with open(raw_path, "w", encoding="utf-8") as f, \
+         open(elic_path, "w", encoding="utf-8") as ef:
         for model in args.models:
             for key in keys:
                 persona = PERSONAS[key]
@@ -249,12 +336,33 @@ def main():
                         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                     f.flush()
 
-    summary = summarise(all_records)
+                    if args.no_elicitation:
+                        continue
+                    try:
+                        verdicts = judge_elicitation(records, persona)
+                    except Exception as e:
+                        print(f"    elicitation judge failed: {e}", flush=True)
+                        continue
+                    for v in verdicts:
+                        rec = {
+                            "model": model,
+                            "persona": persona["name"],
+                            "run": run,
+                            "attribute": v.get("attribute"),
+                            "elicited": bool(v.get("elicited")),
+                            "evidence": v.get("evidence", ""),
+                        }
+                        all_elicitation.append(rec)
+                        ef.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                    ef.flush()
+
+    summary = summarise(all_records, all_elicitation)
     with open(os.path.join(outdir, "summary.json"), "w", encoding="utf-8") as f:
         json.dump({
             "generated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "repeats": args.repeats,
             "temperature": args.temperature,
+            "judge_model": JUDGE_MODEL,
             "prompt_count": len(BENCHMARK_PROMPTS),
             "results": summary,
         }, f, indent=2)
@@ -269,13 +377,28 @@ def main():
                         e["information_control"]["modal"], e["information_control"]["agreement"],
                         e["character_breaking"]["modal"], e["character_breaking"]["agreement"]])
 
-    print(f"\nWrote {len(all_records)} records to {outdir}\n")
+    with open(os.path.join(outdir, "elicitation.csv"), "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["model", "persona", "attribute", "modal", "agreement",
+                    "elicited_count", "runs"])
+        for e in summary:
+            for label, a in e["elicitation"].items():
+                w.writerow([e["model"], e["persona"], label, a["modal"],
+                            a["agreement"], a["elicited_count"], a["runs"]])
+
+    print(f"\nWrote {len(all_records)} records to {outdir}")
+    print(f"Judge model: {JUDGE_MODEL}\n")
     for e in summary:
         ic, cb = e["information_control"], e["character_breaking"]
         flag = "  <- varies across runs" if (ic["unstable"] or cb["unstable"]) else ""
         print(f"{e['model']:24} {e['persona']:12} "
               f"IC {ic['modal']} ({ic['agreement']})  "
               f"CB {cb['modal']} ({cb['agreement']}){flag}")
+        for label, a in e["elicitation"].items():
+            mark = "  <- varies" if a["unstable"] else ""
+            print(f"{'':24} {'':12}   {label}: "
+                  f"{a['elicited_count']}/{a['runs']} elicited "
+                  f"(agreement {a['agreement']}){mark}")
 
 
 if __name__ == "__main__":
