@@ -165,6 +165,27 @@
     font-size: 13px;
     font-family: inherit;
   }
+
+  .record-strip {
+    background: #F7F5EE;
+    border: 1px solid #DEDACB;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .record-strip summary {
+    padding: 9px 12px;
+    cursor: pointer;
+    color: #3B5F52;
+    font-weight: 600;
+    list-style: none;
+  }
+  .record-strip summary::-webkit-details-marker { display: none; }
+  .record-strip summary::before { content: "\25B8  "; }
+  .record-strip[open] summary::before { content: "\25BE  "; }
+  .record-strip .body { padding: 0 12px 10px; }
+  .record-strip .row { font-size: 12px; padding: 5px 0; }
+
   pre#promptView {
     background: #F2EFE5;
     padding: 14px;
@@ -270,8 +291,8 @@
       <div class="group">
         <h3 class="group-head">Start here</h3>
         <p class="group-sub">
-          A short warm-up to get used to the interface. Jamie answers openly,
-          so nothing has to be drawn out.
+          A short session to familiarise yourself with the interface and
+          conversation flow before the six at-risk personas.
         </p>
         <div id="warmupGrid"></div>
       </div>
@@ -317,6 +338,10 @@
         <button class="secondary" onclick="togglePrompt()">Show system prompt</button>
       </div>
       <pre id="promptView" class="hidden"></pre>
+      <details class="record-strip" id="recordStrip" open>
+        <summary>Academic record</summary>
+        <div class="body" id="sessionRecordRows"></div>
+      </details>
       <div id="chatBox">
         <p class="placeholder">Start the conversation, e.g. "Hi, how are you going?"</p>
       </div>
@@ -517,15 +542,21 @@ function renderBrief(data) {
   document.getElementById("briefSub").textContent =
     data.year_label + " year " + p.degree + ", " + p.faculty;
 
-  document.getElementById("academicRows").innerHTML = [
-    ["WAM trend", p.wam_trend.join(" \u2192 ")],
-    ["Failed units", p.failed_units],
-    ["Attendance last semester", p.attendance + "%"],
-    ["Academic standing", p.academic_standing],
-  ].map(r => rowHTML(r)).join("");
+  document.getElementById("academicRows").innerHTML = academicRowsHTML();
 
   document.getElementById("personalRows").innerHTML =
     data.hidden_labels.map(label => rowHTML([label, "not yet known"], true)).join("");
+}
+
+function academicRowsHTML() {
+  const p = currentPersona;
+  return [
+    ["WAM trend", p.wam_trend.length
+      ? p.wam_trend.join(" \u2192 ")
+      : "No history yet; first semester of first year"],
+    ["Failed units", p.failed_units],
+    ["Academic standing", p.academic_standing],
+  ].map(r => rowHTML(r)).join("");
 }
 
 function rowHTML([label, value], redacted) {
@@ -537,6 +568,7 @@ function startSession() {
   document.getElementById("sessionAvatar").innerHTML = avatarHTML(currentKey, initials);
   document.getElementById("sessionName").textContent = currentPersona.name;
   document.getElementById("promptView").textContent = currentPrompt;
+  document.getElementById("sessionRecordRows").innerHTML = academicRowsHTML();
   setStage("session");
   document.getElementById("userInput").focus();
 }

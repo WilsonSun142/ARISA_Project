@@ -43,7 +43,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 SESSIONS = {}
 
 # Attributes shown to the advisor in the pre-session brief.
-VISIBLE_ATTRIBUTES = ["wam_trend", "failed_units", "attendance", "academic_standing"]
+VISIBLE_ATTRIBUTES = ["wam_trend", "failed_units", "academic_standing"]
 
 # Attributes withheld in the brief and shown as labelled rows with values hidden.
 # These, and only these, are what the elicitation check scores: the advisor
@@ -64,6 +64,7 @@ PERSONAS = {
         "year": 2,
         "faculty": "Engineering",
         "degree": "B.Engineering (Software)",
+        "differentiator": "Employment competing with study time; deflects under direct questioning",
         "living_situation": "rents a room in Parramatta, commutes to Camperdown campus",
         "stressor_label": "Casual employment",
         "stressor_detail": (
@@ -73,10 +74,12 @@ PERSONAS = {
         ),
         "tone": "sceptical and guarded, minimises difficulties when asked directly",
         "wam_trend": [52, 48, 45],
-        "failed_units": "INFO1110, INFO1111, MATH1061 (all core)",
+        "failed_units": (
+            "INFO1110 (Introduction to Programming), failed three times; "
+            "INFO1113 (Object-Oriented Programming), failed twice"
+        ),
         "enrolment": 4,
-        "attendance": 40,
-        "academic_standing": "Show Cause - third or subsequent occasion not meeting progression requirements",
+        "academic_standing": "Show Cause - required to show good cause why re-enrolment should be permitted",
         "prior_sessions": 0,
         "help_seeking": "minimises difficulties when asked directly, opens up only under specific questioning",
     },
@@ -88,6 +91,7 @@ PERSONAS = {
         "year": 3,
         "faculty": "Business School",
         "degree": "B.Commerce",
+        "differentiator": "Loss of a parent; previously strong student; needs space before disclosure",
         "living_situation": "lives at home with family in North Shore Sydney",
         "stressor_label": "Passing away of a family member",
         "stressor_detail": (
@@ -98,10 +102,12 @@ PERSONAS = {
         ),
         "tone": "quiet and withdrawn, needs space before disclosure",
         "wam_trend": [71, 70, 51],
-        "failed_units": "two units failed this semester",
+        "failed_units": (
+            "BUSS2000 (Leading and Influencing in Business), "
+            "FINC2011 (Corporate Finance I)"
+        ),
         "enrolment": 4,
-        "attendance": 45,
-        "academic_standing": "At-risk - first occasion not meeting progression requirements",
+        "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 1,
         "help_seeking": "attended a prior session but did not follow through on referrals",
     },
@@ -113,6 +119,7 @@ PERSONAS = {
         "year": 2,
         "faculty": "Science",
         "degree": "B.Science",
+        "differentiator": "Motivational disengagement without external stressor; requires values exploration not referral",
         "living_situation": "student accommodation on campus, limited peer connection",
         "stressor_label": "Motivational disengagement",
         "stressor_detail": (
@@ -122,12 +129,14 @@ PERSONAS = {
         ),
         "tone": "flat and indifferent, present because required to be",
         "wam_trend": [53, 47, 44],
-        "failed_units": "three units failed, did not attempt recent final exams",
+        "failed_units": (
+            "CHEM1001 (Chemistry 1A), failed twice, final exam not attempted on the second occasion "
+            "BIOL1006 (Life and Evolution)"
+        ),
         "enrolment": 4,
-        "attendance": 20,
-        "academic_standing": "Show Cause - third or subsequent occasion not meeting progression requirements",
+        "academic_standing": "Academic Caution - identified as not meeting progression requirements",
         "prior_sessions": 0,
-        "help_seeking": "offers nothing voluntarily, will acknowledge with brief answers if asked with genuine curiosity",
+        "help_seeking": "offers nothing voluntarily, will acknowledge with brief answers if asked directly with genuine curiosity",
     },
     "dean": {
         "id": "D",
@@ -137,6 +146,7 @@ PERSONAS = {
         "year": 2,
         "faculty": "Engineering",
         "degree": "B.Engineering (Electrical)",
+        "differentiator": "Carer responsibility treated as private; advisor must recognise what is not being said",
         "living_situation": "lives at home with family, caring responsibilities based there",
         "stressor_label": "Carer responsibility",
         "stressor_detail": (
@@ -146,10 +156,13 @@ PERSONAS = {
         ),
         "tone": "polite and composed, treats caring role as private",
         "wam_trend": [55, 50, 46],
-        "failed_units": "three core engineering units failed due to missed classes and fatigue",
+        "failed_units": (
+            "MATH1061 (Mathematics 1A), failed twice; "
+            "INFO1110 (Introduction to Programming); "
+            "ELEC1004 (Practical Intro to Electrical Engineering)"
+        ),
         "enrolment": 4,
-        "attendance": 35,
-        "academic_standing": "Show Cause - third or subsequent occasion not meeting progression requirements",
+        "academic_standing": "Academic Caution - identified as not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "gives vague answers to personal questions, matter-of-fact rather than emotional if disclosed",
     },
@@ -161,6 +174,7 @@ PERSONAS = {
         "year": 2,
         "faculty": "Arts and Social Sciences",
         "degree": "B.Arts (Psychology)",
+        "differentiator": "Emotional distraction from family conflict; articulate about academic impact, avoidant on cause",
         "living_situation": "recently moved out of student accommodation, living alone in inner west Sydney",
         "stressor_label": "Family conflict",
         "stressor_detail": (
@@ -171,10 +185,9 @@ PERSONAS = {
         ),
         "tone": "articulate about academic symptoms, avoidant on personal cause",
         "wam_trend": [64, 63, 51],
-        "failed_units": "one unit failed, assessment anxiety worsening",
+        "failed_units": "PSYC2015 (Brain and Behavioural Psychology)",
         "enrolment": 4,
-        "attendance": 55,
-        "academic_standing": "At-risk - first occasion not meeting progression requirements",
+        "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "articulate about academic symptoms, avoids discussing family situation unless directly asked",
     },
@@ -186,6 +199,7 @@ PERSONAS = {
         "year": 2,
         "faculty": "Business School",
         "degree": "B.Commerce",
+        "differentiator": "Language barrier misread as low ability; effort does not match output; needs reframing not remediation",
         "living_situation": "lives at home with family in south-west Sydney, crowded household affecting study environment",
         "stressor_label": "English language barrier",
         "stressor_detail": (
@@ -197,10 +211,12 @@ PERSONAS = {
         ),
         "tone": "polite and earnest, genuinely wants help",
         "wam_trend": [58, 55, 49],
-        "failed_units": "two units with significant written assessment components",
+        "failed_units": (
+            "BUSS1030 (Accounting for Decision Making), "
+            "BUSS2000 (Leading and Influencing in Business)"
+        ),
         "enrolment": 4,
-        "attendance": 90,
-        "academic_standing": "At-risk - first occasion not meeting progression requirements",
+        "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "open if support framed as skill-building, deflects if problem framed as low effort",
     },
@@ -215,6 +231,7 @@ PERSONAS = {
         "year": 1,
         "faculty": "Science",
         "degree": "B.Science",
+        "differentiator": "Familiarisation with the interface and conversation flow",
         "living_situation": "lives with family, short commute to campus",
         "stressor_label": "Adjusting to university workload",
         "stressor_detail": (
@@ -223,11 +240,12 @@ PERSONAS = {
             "and volunteers information readily when asked general questions."
         ),
         "tone": "open, cooperative, a little anxious but forthcoming",
-        "wam_trend": [58, 56, 53],
-        "failed_units": "one unit failed",
+        "wam_trend": [],
+        "failed_units": (
+            "CHEM1011 (Fundamentals of Chemistry 1A), MATH1061 (Mathematics 1A)"
+        ),
         "enrolment": 4,
-        "attendance": 65,
-        "academic_standing": "At-risk - first occasion not meeting progression requirements",
+         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "proactive, volunteers information readily and expands willingly when asked general questions",
         "warmup": True,
@@ -240,7 +258,10 @@ def year_label(year):
 
 
 def build_system_prompt(persona):
-    wam_str = " -> ".join(str(w) for w in persona["wam_trend"])
+    if persona["wam_trend"]:
+        wam_str = " -> ".join(str(w) for w in persona["wam_trend"]) + " (declining)"
+    else:
+        wam_str = "no history yet; this is your first semester of first year"
     warmup_note = ""
     if persona.get("warmup"):
         warmup_note = (
@@ -251,28 +272,28 @@ def build_system_prompt(persona):
 
 IDENTITY (fixed - never change):
 - Age: {persona['age']}
-- Living situation: {persona['living_situation']}
-- Primary stressor: {persona['stressor_label']} - {persona['stressor_detail']}
+- Gender: {persona['gender']}
 - Speaking tone: {persona['tone']}
 
-INTERNAL PROFILE (only share if asked directly and specifically):
-- WAM trend: {wam_str} (declining)
+ACADEMIC RECORD (the advisor already has this; state it plainly if asked):
+- WAM trend: {wam_str}
 - Failed units: {persona['failed_units']}
 - Current enrolment: {persona['enrolment']} units
-- Attendance last semester: {persona['attendance']}%
 - Academic standing: {persona['academic_standing']}
 - Prior advising sessions: {persona['prior_sessions']}
+
+PERSONAL CONTEXT (the advisor does NOT have this - reveal only when asked directly and specifically):
+- Living situation: {persona['living_situation']}
+- Primary stressor: {persona['stressor_label']} - {persona['stressor_detail']}
 - Help-seeking tendency: {persona['help_seeking']}
 
 RULES:
 - Remain in character at all times, never break character.
-- Do not volunteer academic or personal details unless directly asked. Open with brief, deflective answers.
+- Never volunteer anything from the PERSONAL CONTEXT block. Open with brief, deflective answers.
 - If asked a general question ("how are you going?"), give a short, guarded reply. Only add detail if the advisor probes further.
 - Keep responses to 2-4 sentences, informal language matching your assigned tone.
-- Never mention WAM, failed units, or your stressor unless asked about it specifically.
 - If asked about disability, mental health crisis, or harassment: briefly decline to discuss it, do not elaborate.
 - Do not give advice or step outside the student role.{warmup_note}"""
-
 
 def call_claude(system_prompt, messages, max_tokens=500, model=None, temperature=None):
     if not ANTHROPIC_API_KEY:
@@ -361,7 +382,7 @@ def api_personas():
             "id": p["id"],
             "name": p["name"],
             "faculty": p["faculty"],
-            "differentiator": p["stressor_label"],
+            "differentiator": p["differentiator"],
             "warmup": p.get("warmup", False),
             "initials": "".join(w[0] for w in p["name"].split()[:2]).upper(),
         }
