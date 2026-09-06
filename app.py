@@ -388,13 +388,11 @@ def api_personas():
             "id": p["id"],
             "name": p["name"],
             "faculty": p["faculty"],
-            "differentiator": p["differentiator"],
             "warmup": p.get("warmup", False),
             "initials": "".join(w[0] for w in p["name"].split()[:2]).upper(),
         }
         for key, p in PERSONAS.items()
     ])
-
 
 @app.route("/api/generate", methods=["POST"])
 def api_generate():

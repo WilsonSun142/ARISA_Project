@@ -501,9 +501,8 @@ async function loadPersonaGrid() {
         <div>
           <div class="p-name">${p.warmup ? "" : p.id + ". "}${p.name}</div>
           <div class="p-faculty">${p.faculty}</div>
-          <div class="p-diff">${p.differentiator}</div>
         </div>
-      </button>`;
+  </button>`;
     document.getElementById("warmupGrid").innerHTML =
       list.filter(p => p.warmup).map(card).join("");
     document.getElementById("personaGrid").innerHTML =
