@@ -298,36 +298,72 @@ RULES:
 - If asked a general question ("how are you going?"), give a short, guarded reply. Only add detail if the advisor probes further.
 - Keep responses to 2-4 sentences, informal language matching your assigned tone.
 - If asked about disability, mental health crisis, or harassment: briefly decline to discuss it, do not elaborate.
-- Do not give advice or step outside the student role.{warmup_note}"""
+- Do not give advice or step outside the student role.
+- Before replying, silently check your draft against the PERSONAL CONTEXT block: would this reveal anything the advisor did not directly and specifically ask about? If so, revise before outputting. Never show this checking process to the advisor.{warmup_note}"""
 
-def call_claude(system_prompt, messages, max_tokens=500, model=None, temperature=None):
-    if not ANTHROPIC_API_KEY:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set. Run: export ANTHROPIC_API_KEY=your_key_here"
-        )
-    payload = {
-        "model": model or MODEL,
-        "max_tokens": max_tokens,
-        "temperature": TEMPERATURE if temperature is None else temperature,
-        "system": system_prompt,
-        "messages": messages,
-    }
-    resp = requests.post(
-        ANTHROPIC_URL,
-        headers={
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json; charset=utf-8",
-        },
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        timeout=60,
+
+VERIFY_MAX_ATTEMPTS = 2
+
+def build_verifier_prompt(persona):
+    hidden_block = "\n".join(
+        f"- {label}: {persona['stressor_label'] + ' - ' + persona['stressor_detail'] if k == 'stressor' else persona[k]}"
+        for k, label in HIDDEN_ATTRIBUTES
     )
-    resp.raise_for_status()
-    data = resp.json()
-    for block in data.get("content", []):
-        if block.get("type") == "text":
-            return block["text"]
-    return ""
+    return f"""You are a strict compliance checker for a role-play simulation of {persona['name']}.
+
+The character has these attributes that must never be volunteered unless the advisor's most recent message directly and specifically asked about that exact topic:
+{hidden_block}
+
+You will see the advisor's message and a candidate reply. Decide whether the reply discloses any withheld attribute, or a clear paraphrase of one, that the advisor did not directly ask for.
+
+Respond with ONLY one of:
+VIOLATION: <name the attribute disclosed and why the question did not warrant it>
+OK
+
+Judge disclosure only. Do not comment on tone or character consistency."""
+
+
+def generate_checked_reply(persona, messages):
+    """Generator-verifier loop mirroring DuetSim (Luo et al., 2024) and
+    Ji et al.'s (2025) self-questioning, adapted to check PERSONAL CONTEXT
+    disclosure rather than trait consistency. See thesis Section 3.3."""
+    system_prompt = build_system_prompt(persona)
+    verifier_prompt = build_verifier_prompt(persona)
+    advisor_message = messages[-1]["content"]
+    working_messages = list(messages)
+    feedback = None
+    reply = None
+
+    for attempt in range(VERIFY_MAX_ATTEMPTS + 1):
+        if feedback:
+            working_messages = messages + [
+                {"role": "assistant", "content": reply},
+                {"role": "user", "content": (
+                    f"[SYSTEM NOTE, not visible to the advisor] Your last reply "
+                    f"disclosed something it should not have: {feedback} "
+                    f"Rewrite your reply to the advisor's last message without "
+                    f"this disclosure, staying in character and tone."
+                )},
+            ]
+
+        reply = call_claude(system_prompt, working_messages)
+
+        verdict = call_claude(
+            verifier_prompt,
+            [{"role": "user", "content": (
+                f"Advisor's message: {advisor_message}\n\n"
+                f"Candidate reply: {reply}"
+            )}],
+            max_tokens=150,
+            temperature=0,
+        ).strip()
+
+        if verdict.upper().startswith("OK") or attempt == VERIFY_MAX_ATTEMPTS:
+            return reply, attempt
+
+        feedback = verdict.split(":", 1)[1].strip() if ":" in verdict else verdict
+
+    return reply, VERIFY_MAX_ATTEMPTS
 
 
 # ---------------------------------------------------------------------------
@@ -418,10 +454,9 @@ def api_chat():
     user_text = (request.json.get("message") or "").strip()
     if not user_text:
         return jsonify({"error": "Type a question before sending."}), 400
-
     state["messages"].append({"role": "user", "content": user_text})
     try:
-        reply = call_claude(build_system_prompt(state["persona"]), state["messages"])
+        reply, verify_attempts = generate_checked_reply(state["persona"], state["messages"])
     except requests.HTTPError as e:
         state["messages"].pop()
         return jsonify({"error": f"The model did not respond ({e.response.status_code}). Try again."}), 502
@@ -430,8 +465,8 @@ def api_chat():
         return jsonify({"error": str(e)}), 500
 
     state["messages"].append({"role": "assistant", "content": reply})
+    state.setdefault("verify_log", []).append(verify_attempts)
     return jsonify({"reply": reply})
-
 
 @app.route("/api/self-rating", methods=["POST"])
 def api_self_rating():
