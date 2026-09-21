@@ -25,6 +25,15 @@ MODEL = os.environ.get("ARISA_MODEL", "claude-sonnet-4-6")
 TEMPERATURE = float(os.environ.get("ARISA_TEMPERATURE", "1.0"))
 
 DATA_DIR = os.environ.get("ARISA_DATA_DIR", os.path.join(os.path.dirname(__file__), "data", "sessions"))
+PROMPT_DIR = os.environ.get("ARISA_PROMPT_DIR", os.path.join(os.path.dirname(__file__), "prompts"))
+def load_template(filename):
+    path = os.path.join(PROMPT_DIR, filename)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+SYSTEM_PROMPT_TEMPLATE = load_template("system_prompt.md")
+VERIFIER_PROMPT_TEMPLATE = load_template("verifier_prompt.md")
+
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
@@ -256,6 +265,30 @@ PERSONAS = {
     },
 }
 
+# Fields safe to send before a session starts: the academic record layer
+# only. Excludes differentiator (admin-only design documentation) and the
+# three HIDDEN_ATTRIBUTES fields, which must not reach the client until
+# debrief - sending them at brief time would let an advisor read the
+# answer from the network tab, defeating the discovery design the
+# benchmark and OLM are both built around.
+BRIEF_PUBLIC_FIELDS = {
+    "id", "name", "age", "gender", "pronouns", "year", "faculty", "degree",
+    "tone", "wam_trend", "failed_units", "enrolment", "academic_standing",
+    "prior_sessions", "warmup",
+}
+
+
+PERSONA_PUBLIC_FIELDS = {
+    "id", "name", "age", "gender", "pronouns", "year", "faculty", "degree",
+    "living_situation", "stressor_label", "stressor_detail", "tone",
+    "wam_trend", "failed_units", "enrolment", "academic_standing",
+    "prior_sessions", "help_seeking", "warmup",
+}
+def brief_persona(persona):
+    return {k: v for k, v in persona.items() if k in BRIEF_PUBLIC_FIELDS}
+
+def public_persona(persona):
+    return {k: v for k, v in persona.items() if k in PERSONA_PUBLIC_FIELDS}
 
 def year_label(year):
     return {1: "1st", 2: "2nd", 3: "3rd"}.get(year, f"{year}th")
@@ -273,34 +306,26 @@ def build_system_prompt(persona):
             "with useful detail rather than deflecting."
         )
     pronoun_line = f"\n- Pronouns: {persona['pronouns']}" if persona.get("pronouns") else ""
-    return f"""You are role-playing as {persona['name']}, a {year_label(persona['year'])} year {persona['degree']} student in the {persona['faculty']} at the University of Sydney, in a mandatory academic advising session.
-
-IDENTITY (fixed - never change):
-- Age: {persona['age']}
-- Gender: {persona['gender']}{pronoun_line}
-- Speaking tone: {persona['tone']}
-
-ACADEMIC RECORD (the advisor already has this; state it plainly if asked):
-- WAM trend: {wam_str}
-- Failed units: {persona['failed_units']}
-- Current enrolment: {persona['enrolment']} units
-- Academic standing: {persona['academic_standing']}
-- Prior advising sessions: {persona['prior_sessions']}
-
-PERSONAL CONTEXT (the advisor does NOT have this - reveal only when asked directly and specifically):
-- Living situation: {persona['living_situation']}
-- Primary stressor: {persona['stressor_label']} - {persona['stressor_detail']}
-- Help-seeking tendency: {persona['help_seeking']}
-
-RULES:
-- Remain in character at all times, never break character.
-- Never volunteer anything from the PERSONAL CONTEXT block. Open with brief, deflective answers.
-- If asked a general question ("how are you going?"), give a short, guarded reply. Only add detail if the advisor probes further.
-- Keep responses to 2-4 sentences, informal language matching your assigned tone.
-- If asked about disability, mental health crisis, or harassment: briefly decline to discuss it, do not elaborate.
-- Do not give advice or step outside the student role.
-- Before replying, silently check your draft against the PERSONAL CONTEXT block: would this reveal anything the advisor did not directly and specifically ask about? If so, revise before outputting. Never show this checking process to the advisor.{warmup_note}"""
-
+    return SYSTEM_PROMPT_TEMPLATE.format(
+        name=persona["name"],
+        year_label=year_label(persona["year"]),
+        degree=persona["degree"],
+        faculty=persona["faculty"],
+        age=persona["age"],
+        gender=persona["gender"],
+        pronoun_line=pronoun_line,
+        tone=persona["tone"],
+        wam_str=wam_str,
+        failed_units=persona["failed_units"],
+        enrolment=persona["enrolment"],
+        academic_standing=persona["academic_standing"],
+        prior_sessions=persona["prior_sessions"],
+        living_situation=persona["living_situation"],
+        stressor_label=persona["stressor_label"],
+        stressor_detail=persona["stressor_detail"],
+        help_seeking=persona["help_seeking"],
+        warmup_note=warmup_note,
+    )
 
 VERIFY_MAX_ATTEMPTS = 2
 
@@ -309,18 +334,39 @@ def build_verifier_prompt(persona):
         f"- {label}: {persona['stressor_label'] + ' - ' + persona['stressor_detail'] if k == 'stressor' else persona[k]}"
         for k, label in HIDDEN_ATTRIBUTES
     )
-    return f"""You are a strict compliance checker for a role-play simulation of {persona['name']}.
+    return VERIFIER_PROMPT_TEMPLATE.format(
+        name=persona["name"],
+        hidden_block=hidden_block,
+    )
 
-The character has these attributes that must never be volunteered unless the advisor's most recent message directly and specifically asked about that exact topic:
-{hidden_block}
-
-You will see the advisor's message and a candidate reply. Decide whether the reply discloses any withheld attribute, or a clear paraphrase of one, that the advisor did not directly ask for.
-
-Respond with ONLY one of:
-VIOLATION: <name the attribute disclosed and why the question did not warrant it>
-OK
-
-Judge disclosure only. Do not comment on tone or character consistency."""
+def call_claude(system_prompt, messages, max_tokens=500, model=None, temperature=None):
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set. Run: export ANTHROPIC_API_KEY=your_key_here"
+        )
+    payload = {
+        "model": model or MODEL,
+        "max_tokens": max_tokens,
+        "temperature": TEMPERATURE if temperature is None else temperature,
+        "system": system_prompt,
+        "messages": messages,
+    }
+    resp = requests.post(
+        ANTHROPIC_URL,
+        headers={
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json; charset=utf-8",
+        },
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        timeout=60,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    for block in data.get("content", []):
+        if block.get("type") == "text":
+            return block["text"]
+    return ""
 
 
 def generate_checked_reply(persona, messages):
@@ -438,12 +484,11 @@ def api_generate():
     state = new_state(key)
     persona = state["persona"]
     return jsonify({
-        "persona": persona,
+        "persona": brief_persona(persona),
         "system_prompt": build_system_prompt(persona),
         "hidden_labels": [label for _, label in HIDDEN_ATTRIBUTES],
         "year_label": year_label(persona["year"]),
     })
-
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
@@ -552,7 +597,7 @@ Respond with ONLY a JSON array in exactly this form:
     persist(state)
 
     return jsonify({
-        "persona": persona,
+        "persona": public_persona(persona),
         "elicitation": elicitation,
         "self_rating": state["self_rating"],
         "full_profile": [
@@ -562,7 +607,6 @@ Respond with ONLY a JSON array in exactly this form:
             for k, label in HIDDEN_ATTRIBUTES
         ],
     })
-
 
 @app.route("/api/reset", methods=["POST"])
 def api_reset():
