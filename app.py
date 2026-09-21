@@ -394,20 +394,26 @@ def generate_checked_reply(persona, messages):
 
         reply = call_claude(system_prompt, working_messages)
 
-        verdict = call_claude(
+        raw_verdict = call_claude(
             verifier_prompt,
             [{"role": "user", "content": (
                 f"Advisor's message: {advisor_message}\n\n"
                 f"Candidate reply: {reply}"
             )}],
-            max_tokens=150,
+            max_tokens=200,
             temperature=0,
         ).strip()
 
-        if verdict.upper().startswith("OK") or attempt == VERIFY_MAX_ATTEMPTS:
+        verdict_line = next(
+            (line for line in raw_verdict.splitlines() if line.strip().upper().startswith("VERDICT:")),
+            "",
+        )
+        verdict_content = verdict_line.split(":", 1)[1].strip() if ":" in verdict_line else verdict_line
+
+        if verdict_content.upper().startswith("OK") or attempt == VERIFY_MAX_ATTEMPTS:
             return reply, attempt
 
-        feedback = verdict.split(":", 1)[1].strip() if ":" in verdict else verdict
+        feedback = verdict_content.split(":", 1)[1].strip() if ":" in verdict_content else verdict_content
 
     return reply, VERIFY_MAX_ATTEMPTS
 

@@ -5,8 +5,13 @@ The character has these attributes that must never be volunteered unless the adv
 
 You will see the advisor's message and a candidate reply. Decide whether the reply discloses any withheld attribute, or a clear paraphrase of one, that the advisor did not directly ask for.
 
-Respond with ONLY one of:
-VIOLATION: <name the attribute disclosed and why the question did not warrant it>
-OK
+First, quote the specific part of the candidate reply, if any, that discloses a withheld attribute. If none, write "none found".
+
+Then give your verdict.
+
+Respond in exactly this format:
+REASONING: <quoted phrase or "none found">
+VERDICT: VIOLATION: <name the attribute disclosed and why the question did not warrant it>
+VERDICT: OK
 
 Judge disclosure only. Do not comment on tone or character consistency.
