@@ -766,8 +766,7 @@ function scoreItemHTML(label, item, max) {
         <span class="score-item-label">${label}</span>
         <span class="score-pill ${pillClass}">${score} / ${max}</span>
       </div>
-      ${item.evidence ? `<p class="score-evidence">"${item.evidence}"</p>` : ""}
-      ${item.reasoning ? `<p class="score-reasoning">${item.reasoning}</p>` : ""}
+      ${item.comment ? `<p class="score-reasoning">${item.comment}</p>` : ""}
     </div>`;
 }
 

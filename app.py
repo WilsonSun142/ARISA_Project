@@ -591,42 +591,69 @@ def api_self_rating():
     return jsonify({"ok": True})
 
 # ---------------------------------------------------------------------------
-# Debrief scoring: 20-point rubric across five categories, each judged
-# against direct evidence quoted from the transcript. Categories map onto
-# the three advisor learning pillars (Section 1.4) and the per-persona
-# design-intent questions (Chapter 4): disclosure specificity tests
-# self-reflexive elicitation skill; question technique and collaborative
-# conduct test respectful/collaborative practice; guidance quality and
-# follow-up commitment test whether the session produced a real support
-# plan, per Crookston's (1994) and Saiyad & Mahajan's (2023) framing of
-# advising as collaborative plan development, not just information capture.
+# Debrief scoring: 20-point rubric across five categories. The judge
+# outputs integer scores ONLY (no generated evidence/reasoning text) - this
+# keeps output short, fast, and immune to the truncation failures seen with
+# free-text output. Each score is mapped afterwards to a fixed, pre-written
+# comment from the lookup tables below, so the advisor still gets an
+# explanation for every score, without the model needing to generate one.
 #
-# The judge is run JUDGE_RUNS times at nonzero temperature and scores are
-# averaged (self-consistency, per Wang et al., 2022, already cited in
-# Section 4.2 via Kim et al., 2025), to reduce single-run judge noise -
-# an explicit response to the "benchmark scoring is qualitative" limitation
-# in Section 7.1.
+# Categories map onto the three advisor learning pillars (Section 1.4) and
+# the per-persona design-intent questions (Chapter 4): disclosure
+# specificity tests self-reflexive elicitation skill; question technique
+# and collaborative conduct test respectful/collaborative practice;
+# guidance quality and follow-up commitment test whether the session
+# produced a real support plan, per Crookston's (1994) and Saiyad &
+# Mahajan's (2023) framing of advising as collaborative plan development,
+# not just information capture.
+#
+# The judge is run JUDGE_RUNS times and scores are averaged (self-
+# consistency, per Wang et al., 2022, already cited in Section 4.2 via
+# Kim et al., 2025), to reduce single-run judge noise - an explicit
+# response to the "benchmark scoring is qualitative" limitation in
+# Section 7.1. Averaging is now cheap since each run is integers-only.
 # ---------------------------------------------------------------------------
 
 JUDGE_RUNS = 3
 JUDGE_TEMPERATURE = 0.5
 
-DEBRIEF_SCORE_SCHEMA = {
-    "disclosure": [
-        {"attribute": None, "score": 0, "evidence": "", "reasoning": ""}
-        for _ in range(3)
-    ],
-    "question_technique": {
-        "open_vs_leading": {"score": 0, "evidence": "", "reasoning": ""},
-        "design_intent_coverage": {"score": 0, "evidence": "", "reasoning": ""},
-        "pacing": {"score": 0, "evidence": "", "reasoning": ""},
-    },
-    "collaborative_conduct": {
-        "options_not_directives": {"score": 0, "evidence": "", "reasoning": ""},
-        "escalation_boundaries": {"score": 0, "evidence": "", "reasoning": ""},
-    },
-    "guidance_quality": {"score": 0, "evidence": "", "reasoning": ""},
-    "follow_up_commitment": {"score": 0, "evidence": "", "reasoning": ""},
+DISCLOSURE_COMMENTS = {
+    0: "Not drawn out during the session.",
+    1: "Volunteered easily, or only asked via a closed/leading question.",
+    2: "Asked directly and answered, but not followed up for detail.",
+    3: "Followed up to draw out concrete, specific detail.",
+}
+OPEN_VS_LEADING_COMMENTS = {
+    0: "Mostly closed or leading questions.",
+    1: "A mix of open and closed/leading questions.",
+    2: "Predominantly open questions.",
+}
+DESIGN_INTENT_COMMENTS = {
+    0: "Covered none or almost none of the key areas to explore.",
+    1: "Covered some of the key areas to explore.",
+    2: "Covered most or all of the key areas to explore.",
+}
+PACING_COMMENTS = {
+    0: "Pressed on sensitive topics in a way that caused withdrawal or discomfort.",
+    1: "Adequate pacing, but rushed.",
+    2: "Paced well for this student, backing off when needed.",
+}
+OPTIONS_COMMENTS = {
+    0: "Prescribed a single directive rather than offering options.",
+    1: "Presented options for the student to choose from.",
+}
+ESCALATION_COMMENTS = {
+    0: "Pushed on a topic the student had declined to discuss.",
+    1: "Respected the student's boundaries, or no such topic arose.",
+}
+GUIDANCE_COMMENTS = {
+    0: "No support options or guidance discussed.",
+    1: "Generic sympathy or encouragement, no concrete option.",
+    2: "Offered a specific, relevant option matched to the session.",
+}
+FOLLOWUP_COMMENTS = {
+    0: "No agreement reached on a next step.",
+    1: "Student explicitly agreed to a specific next step.",
 }
 
 
@@ -643,21 +670,11 @@ def build_debrief_judge_prompt(persona, transcript):
     design_intent_block = "\n".join(f"- {q}" for q in persona.get("design_intent", []))
 
     expected = json.dumps({
-        "disclosure": [
-            {"attribute": label, "score": 0, "evidence": "", "reasoning": ""}
-            for _, label in HIDDEN_ATTRIBUTES
-        ],
-        "question_technique": {
-            "open_vs_leading": {"score": 0, "evidence": "", "reasoning": ""},
-            "design_intent_coverage": {"score": 0, "evidence": "", "reasoning": ""},
-            "pacing": {"score": 0, "evidence": "", "reasoning": ""},
-        },
-        "collaborative_conduct": {
-            "options_not_directives": {"score": 0, "evidence": "", "reasoning": ""},
-            "escalation_boundaries": {"score": 0, "evidence": "", "reasoning": ""},
-        },
-        "guidance_quality": {"score": 0, "evidence": "", "reasoning": ""},
-        "follow_up_commitment": {"score": 0, "evidence": "", "reasoning": ""},
+        "disclosure": [0, 0, 0],
+        "question_technique": {"open_vs_leading": 0, "design_intent_coverage": 0, "pacing": 0},
+        "collaborative_conduct": {"options_not_directives": 0, "escalation_boundaries": 0},
+        "guidance_quality": 0,
+        "follow_up_commitment": 0,
     })
 
     return f"""Here is a transcript of an academic advising practice session with {persona['name']}.
@@ -674,61 +691,59 @@ The attributes a skilled advisor would be expected to explore with this specific
 Transcript:
 {transcript}
 
-Score the advisor's performance across five categories. For every score, quote the specific transcript turn(s) that justify it and briefly explain why that score was given rather than one above or below it.
+Score the advisor's performance across five categories, as integers only.
 
-1. DISCLOSURE (score each of the three withheld attributes independently, 0-3):
+1. DISCLOSURE (three scores, in this order: {', '.join(label for _, label in HIDDEN_ATTRIBUTES)}; each 0-3):
 0 = Not elicited at all
 1 = Volunteered with minimal prompting, or elicited only via a closed/leading question
 2 = Directly asked and answered, no follow-up for specifics
-3 = Advisor followed up to draw out concrete, specific detail (exact hours, named arrangement, a specific barrier), not just a surface acknowledgment
+3 = Advisor followed up to draw out concrete, specific detail
 
-2. QUESTION TECHNIQUE (three sub-scores):
-- open_vs_leading (0-2): 0 = mostly leading/closed questions; 1 = a mix; 2 = predominantly open questions that let the student state things in their own words
-- design_intent_coverage (0-2): how many of the attributes a skilled advisor would explore (listed above) did the advisor actually raise, in substance if not the exact wording? 0 = none/one; 1 = some; 2 = most or all
-- pacing (0-2): 0 = pressed on sensitive topics in a way that caused withdrawal or discomfort; 1 = adequate but rushed; 2 = paced appropriately for this student's disclosure pattern, including backing off if the student showed reluctance
+2. QUESTION TECHNIQUE (three scores):
+- open_vs_leading (0-2): 0 = mostly leading/closed; 1 = a mix; 2 = predominantly open
+- design_intent_coverage (0-2): 0 = none/one of the attributes above raised; 1 = some; 2 = most or all
+- pacing (0-2): 0 = pressed in a way that caused withdrawal; 1 = adequate but rushed; 2 = well paced, backed off when needed
 
-3. COLLABORATIVE CONDUCT (two sub-scores):
-- options_not_directives (0-1): did the advisor present options for the student to choose from, rather than prescribing a single directive solution?
-- escalation_boundaries (0-1): if any sensitive out-of-scope topic arose (disability, mental health crisis, harassment), did the advisor respect the student's decline to discuss it without pushing further? Score 1 by default if no such topic arose.
+3. COLLABORATIVE CONDUCT (two scores):
+- options_not_directives (0-1): 1 if options were presented rather than a single directive
+- escalation_boundaries (0-1): 1 if the student's decline on any sensitive topic was respected, or no such topic arose
 
-4. GUIDANCE QUALITY (0-2, once for the whole session):
-0 = No support options or guidance discussed
-1 = Generic sympathy or encouragement, no concrete option
-2 = A specific, relevant option offered (named service, load reduction, extension, referral) plausibly matched to what was disclosed or to the known academic record
+4. GUIDANCE QUALITY (0-2): 0 = none; 1 = generic sympathy only; 2 = a specific, relevant option offered
 
-5. FOLLOW-UP COMMITMENT (0-1, once for the whole session):
-0 = No agreement on any next step, or the student did not commit to a suggested action
-1 = The student explicitly agreed to a specific, named next step
+5. FOLLOW-UP COMMITMENT (0-1): 1 if the student explicitly agreed to a specific next step
 
-Respond with ONLY a JSON object in exactly this form:
+Respond with ONLY a JSON object of integer scores in exactly this form, no other text, no evidence, no explanation:
 {expected}"""
 
 
-def _score_of(item):
+def _clamp(score, max_val):
     try:
-        return int(item.get("score", 0))
+        s = int(round(float(score)))
     except (TypeError, ValueError):
-        return 0
+        s = 0
+    return max(0, min(max_val, s))
 
 
 def _total_score(judged):
-    total = sum(_score_of(d) for d in judged.get("disclosure", []))
+    d = judged.get("disclosure", [0, 0, 0])
+    total = sum(_clamp(d[i] if i < len(d) else 0, 3) for i in range(3))
     qt = judged.get("question_technique", {})
-    total += sum(_score_of(qt.get(k, {})) for k in ("open_vs_leading", "design_intent_coverage", "pacing"))
+    total += _clamp(qt.get("open_vs_leading", 0), 2)
+    total += _clamp(qt.get("design_intent_coverage", 0), 2)
+    total += _clamp(qt.get("pacing", 0), 2)
     cc = judged.get("collaborative_conduct", {})
-    total += sum(_score_of(cc.get(k, {})) for k in ("options_not_directives", "escalation_boundaries"))
-    total += _score_of(judged.get("guidance_quality", {}))
-    total += _score_of(judged.get("follow_up_commitment", {}))
+    total += _clamp(cc.get("options_not_directives", 0), 1)
+    total += _clamp(cc.get("escalation_boundaries", 0), 1)
+    total += _clamp(judged.get("guidance_quality", 0), 2)
+    total += _clamp(judged.get("follow_up_commitment", 0), 1)
     return total
 
 
 def run_debrief_judge(persona, transcript):
-    """Run the debrief judge JUDGE_RUNS times at nonzero temperature and
-    average numeric scores across runs (self-consistency). Evidence and
-    reasoning text are kept from whichever run's total score is closest
-    to the mean, as a representative sample rather than an average of text.
-    Returns (aggregated_result, raw_runs) - raw_runs is kept for scrutability
-    and appendix inclusion."""
+    """Run the debrief judge JUDGE_RUNS times and average scores
+    (self-consistency). Output is scores only - fixed comments are
+    attached afterwards from a lookup table, not generated per-run,
+    which keeps output short, fast, and immune to truncation."""
     prompt = build_debrief_judge_prompt(persona, transcript)
     raw_runs = []
 
@@ -737,69 +752,54 @@ def run_debrief_judge(persona, transcript):
             raw = call_claude(
                 "You are an evaluation assistant. Reply with valid JSON only.",
                 [{"role": "user", "content": prompt}],
-                max_tokens=1500,
+                max_tokens=300,
                 temperature=JUDGE_TEMPERATURE,
             )
             cleaned = re.sub(r"```json|```", "", raw).strip()
             judged = json.loads(cleaned)
             raw_runs.append(judged)
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             app.logger.error("Debrief judge run failed: %s", e)
 
     if not raw_runs:
         return None, []
 
-    totals = [_total_score(j) for j in raw_runs]
-    mean_total = sum(totals) / len(totals)
-    representative = raw_runs[min(range(len(raw_runs)), key=lambda i: abs(totals[i] - mean_total))]
+    def avg_clamped(get_fn, max_val):
+        vals = [_clamp(get_fn(j), max_val) for j in raw_runs]
+        return round(sum(vals) / len(vals))
 
-    def avg_score(get_fn):
-        vals = [get_fn(j) for j in raw_runs]
-        return round(sum(vals) / len(vals), 1)
-    rep_disclosure = representative.get("disclosure", [])
-
-    def rep_field(i, field, default=""):
-        return rep_disclosure[i].get(field, default) if i < len(rep_disclosure) else default
+    disclosure_scores = [
+        avg_clamped(lambda j, i=i: j.get("disclosure", [0, 0, 0])[i] if i < len(j.get("disclosure", [])) else 0, 3)
+        for i in range(3)
+    ]
+    open_vs_leading = avg_clamped(lambda j: j.get("question_technique", {}).get("open_vs_leading", 0), 2)
+    design_intent_coverage = avg_clamped(lambda j: j.get("question_technique", {}).get("design_intent_coverage", 0), 2)
+    pacing = avg_clamped(lambda j: j.get("question_technique", {}).get("pacing", 0), 2)
+    options_not_directives = avg_clamped(lambda j: j.get("collaborative_conduct", {}).get("options_not_directives", 0), 1)
+    escalation_boundaries = avg_clamped(lambda j: j.get("collaborative_conduct", {}).get("escalation_boundaries", 0), 1)
+    guidance_quality = avg_clamped(lambda j: j.get("guidance_quality", 0), 2)
+    follow_up_commitment = avg_clamped(lambda j: j.get("follow_up_commitment", 0), 1)
 
     aggregated = {
         "disclosure": [
-            {
-                "attribute": rep_field(i, "attribute", label),
-                "score": avg_score(lambda j, i=i: _score_of(j["disclosure"][i]) if i < len(j.get("disclosure", [])) else 0),
-                "evidence": rep_field(i, "evidence"),
-                "reasoning": rep_field(i, "reasoning"),
-            }
+            {"attribute": label, "score": disclosure_scores[i], "comment": DISCLOSURE_COMMENTS[disclosure_scores[i]]}
             for i, (_, label) in enumerate(HIDDEN_ATTRIBUTES)
         ],
         "question_technique": {
-            k: {
-                "score": avg_score(lambda j, k=k: _score_of(j.get("question_technique", {}).get(k, {}))),
-                "evidence": representative.get("question_technique", {}).get(k, {}).get("evidence", ""),
-                "reasoning": representative.get("question_technique", {}).get(k, {}).get("reasoning", ""),
-            }
-            for k in ("open_vs_leading", "design_intent_coverage", "pacing")
+            "open_vs_leading": {"score": open_vs_leading, "comment": OPEN_VS_LEADING_COMMENTS[open_vs_leading]},
+            "design_intent_coverage": {"score": design_intent_coverage, "comment": DESIGN_INTENT_COMMENTS[design_intent_coverage]},
+            "pacing": {"score": pacing, "comment": PACING_COMMENTS[pacing]},
         },
         "collaborative_conduct": {
-            k: {
-                "score": avg_score(lambda j, k=k: _score_of(j.get("collaborative_conduct", {}).get(k, {}))),
-                "evidence": representative.get("collaborative_conduct", {}).get(k, {}).get("evidence", ""),
-                "reasoning": representative.get("collaborative_conduct", {}).get(k, {}).get("reasoning", ""),
-            }
-            for k in ("options_not_directives", "escalation_boundaries")
+            "options_not_directives": {"score": options_not_directives, "comment": OPTIONS_COMMENTS[options_not_directives]},
+            "escalation_boundaries": {"score": escalation_boundaries, "comment": ESCALATION_COMMENTS[escalation_boundaries]},
         },
-        "guidance_quality": {
-            "score": avg_score(lambda j: _score_of(j.get("guidance_quality", {}))),
-            "evidence": representative.get("guidance_quality", {}).get("evidence", ""),
-            "reasoning": representative.get("guidance_quality", {}).get("reasoning", ""),
-        },
-        "follow_up_commitment": {
-            "score": avg_score(lambda j: _score_of(j.get("follow_up_commitment", {}))),
-            "evidence": representative.get("follow_up_commitment", {}).get("evidence", ""),
-            "reasoning": representative.get("follow_up_commitment", {}).get("reasoning", ""),
-        },
-        "total_score": round(mean_total, 1),
+        "guidance_quality": {"score": guidance_quality, "comment": GUIDANCE_COMMENTS[guidance_quality]},
+        "follow_up_commitment": {"score": follow_up_commitment, "comment": FOLLOWUP_COMMENTS[follow_up_commitment]},
+        "total_score": sum(disclosure_scores) + open_vs_leading + design_intent_coverage + pacing
+                       + options_not_directives + escalation_boundaries + guidance_quality + follow_up_commitment,
         "max_score": 20,
-        "run_totals": totals,
+        "run_totals": [_total_score(j) for j in raw_runs],
     }
     return aggregated, raw_runs
 
