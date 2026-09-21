@@ -517,6 +517,7 @@ def api_chat():
 
     state["messages"].append({"role": "assistant", "content": reply})
     state.setdefault("verify_log", []).append(verify_attempts)
+    persist(state)
     return jsonify({"reply": reply})
 
 @app.route("/api/self-rating", methods=["POST"])
