@@ -91,6 +91,13 @@ PERSONAS = {
         "academic_standing": "Show Cause - required to show good cause why re-enrolment should be permitted",
         "prior_sessions": 0,
         "help_seeking": "minimises difficulties when asked directly, opens up only under specific questioning",
+        "design_intent": [
+            "How many hours is she actually working, and when?",
+            "Is employment financially necessary or partially optional?",
+            "Does she know load reduction or timetable adjustment are options?",
+            "Has she accessed any support services previously?",
+            "What would make it possible for her to reduce hours or restructure commitments?",
+        ],
     },
     "ben": {
         "id": "B",
@@ -119,6 +126,13 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 1,
         "help_seeking": "attended a prior session but did not follow through on referrals",
+        "design_intent": [
+            "What has changed this semester compared to his previous strong performance?",
+            "Has something happened personally that has affected his ability to study?",
+            "Is he aware that the Student Counselling Service exists at USYD?",
+            "Why did he not follow through on prior referrals, and what would make it easier this time?",
+            "What support would help him reengage with his studies?",
+        ],
     },
     "chloe": {
         "id": "C",
@@ -146,6 +160,15 @@ PERSONAS = {
         "academic_standing": "Academic Caution - identified as not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "offers nothing voluntarily, will acknowledge with brief answers if asked directly with genuine curiosity",
+        "design_intent": [
+            "Is there an external stressor driving the disengagement, or is this motivational?",
+            "What was her expectation of the degree and how does it differ from reality?",
+            "Does she feel connected to anyone or anything at university?",
+            "Has she considered what she actually wants to do?",
+            "What would need to change for her to feel like the degree is worth continuing?",
+        ],
+
+
     },
     "dean": {
         "id": "D",
@@ -174,6 +197,14 @@ PERSONAS = {
         "academic_standing": "Academic Caution - identified as not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "gives vague answers to personal questions, matter-of-fact rather than emotional if disclosed",
+        "design_intent": [
+            "What is making a typical week difficult to manage?",
+            "Is there a caring or family responsibility that affects his availability?",
+            "Is he aware that USYD carer support services exist?",
+            "Would load reduction or flexible assessment arrangements help?",
+            "What does he need in order to continue his degree without the current level of attrition?",
+        ],
+
     },
     "ella": {
         "id": "E",
@@ -199,6 +230,14 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "articulate about academic symptoms, avoids discussing family situation unless directly asked",
+        "design_intent": [
+            "What has changed in her personal life that coincides with the academic decline?",
+            "Is the family situation ongoing and actively affecting her concentration?",
+            "Has the move off campus increased her isolation?",
+            "Is she aware that counselling exists and what has stopped her from making contact?",
+            "What would help her feel less alone while managing the family situation?",
+        ],
+
     },
     "finn": {
         "id": "F",
@@ -232,6 +271,14 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "will not raise the isolation unless the advisor's own language signals it is safe to, otherwise attributes the decline to vague 'motivation' issues",
+        "design_intent": [
+            "What does a typical week look like socially, not just academically?",
+            "Has Finn found any groups, clubs, or peers at university they feel comfortable with?",
+            "Is something making it harder to connect with people here than expected?",
+            "Is Finn aware that university LGBTQ+ and diversity support services exist?",
+            "What would make university feel less exhausting to navigate day to day?",
+        ],
+
     },
     # Warm-up persona. Not part of the six-persona set: cooperative, no
     # disclosure resistance, used to familiarise the advisor with the interface
@@ -543,6 +590,219 @@ def api_self_rating():
     persist(state)
     return jsonify({"ok": True})
 
+# ---------------------------------------------------------------------------
+# Debrief scoring: 20-point rubric across five categories, each judged
+# against direct evidence quoted from the transcript. Categories map onto
+# the three advisor learning pillars (Section 1.4) and the per-persona
+# design-intent questions (Chapter 4): disclosure specificity tests
+# self-reflexive elicitation skill; question technique and collaborative
+# conduct test respectful/collaborative practice; guidance quality and
+# follow-up commitment test whether the session produced a real support
+# plan, per Crookston's (1994) and Saiyad & Mahajan's (2023) framing of
+# advising as collaborative plan development, not just information capture.
+#
+# The judge is run JUDGE_RUNS times at nonzero temperature and scores are
+# averaged (self-consistency, per Wang et al., 2022, already cited in
+# Section 4.2 via Kim et al., 2025), to reduce single-run judge noise -
+# an explicit response to the "benchmark scoring is qualitative" limitation
+# in Section 7.1.
+# ---------------------------------------------------------------------------
+
+JUDGE_RUNS = 3
+JUDGE_TEMPERATURE = 0.5
+
+DEBRIEF_SCORE_SCHEMA = {
+    "disclosure": [
+        {"attribute": None, "score": 0, "evidence": "", "reasoning": ""}
+        for _ in range(3)
+    ],
+    "question_technique": {
+        "open_vs_leading": {"score": 0, "evidence": "", "reasoning": ""},
+        "design_intent_coverage": {"score": 0, "evidence": "", "reasoning": ""},
+        "pacing": {"score": 0, "evidence": "", "reasoning": ""},
+    },
+    "collaborative_conduct": {
+        "options_not_directives": {"score": 0, "evidence": "", "reasoning": ""},
+        "escalation_boundaries": {"score": 0, "evidence": "", "reasoning": ""},
+    },
+    "guidance_quality": {"score": 0, "evidence": "", "reasoning": ""},
+    "follow_up_commitment": {"score": 0, "evidence": "", "reasoning": ""},
+}
+
+
+def build_debrief_judge_prompt(persona, transcript):
+    attribute_block = "\n".join(
+        f"- {label}: {persona['stressor_label'] + ' - ' + persona['stressor_detail'] if k == 'stressor' else persona[k]}"
+        for k, label in HIDDEN_ATTRIBUTES
+    )
+    academic_block = (
+        f"- WAM trend: {' -> '.join(str(w) for w in persona['wam_trend']) if persona['wam_trend'] else 'no history yet'}\n"
+        f"- Failed units: {persona['failed_units']}\n"
+        f"- Academic standing: {persona['academic_standing']}"
+    )
+    design_intent_block = "\n".join(f"- {q}" for q in persona.get("design_intent", []))
+
+    expected = json.dumps({
+        "disclosure": [
+            {"attribute": label, "score": 0, "evidence": "", "reasoning": ""}
+            for _, label in HIDDEN_ATTRIBUTES
+        ],
+        "question_technique": {
+            "open_vs_leading": {"score": 0, "evidence": "", "reasoning": ""},
+            "design_intent_coverage": {"score": 0, "evidence": "", "reasoning": ""},
+            "pacing": {"score": 0, "evidence": "", "reasoning": ""},
+        },
+        "collaborative_conduct": {
+            "options_not_directives": {"score": 0, "evidence": "", "reasoning": ""},
+            "escalation_boundaries": {"score": 0, "evidence": "", "reasoning": ""},
+        },
+        "guidance_quality": {"score": 0, "evidence": "", "reasoning": ""},
+        "follow_up_commitment": {"score": 0, "evidence": "", "reasoning": ""},
+    })
+
+    return f"""Here is a transcript of an academic advising practice session with {persona['name']}.
+
+The student's true profile for the withheld personal-context attributes is:
+{attribute_block}
+
+The student's academic record, already known to the advisor before the session, is:
+{academic_block}
+
+The attributes a skilled advisor would be expected to explore with this specific student are:
+{design_intent_block}
+
+Transcript:
+{transcript}
+
+Score the advisor's performance across five categories. For every score, quote the specific transcript turn(s) that justify it and briefly explain why that score was given rather than one above or below it.
+
+1. DISCLOSURE (score each of the three withheld attributes independently, 0-3):
+0 = Not elicited at all
+1 = Volunteered with minimal prompting, or elicited only via a closed/leading question
+2 = Directly asked and answered, no follow-up for specifics
+3 = Advisor followed up to draw out concrete, specific detail (exact hours, named arrangement, a specific barrier), not just a surface acknowledgment
+
+2. QUESTION TECHNIQUE (three sub-scores):
+- open_vs_leading (0-2): 0 = mostly leading/closed questions; 1 = a mix; 2 = predominantly open questions that let the student state things in their own words
+- design_intent_coverage (0-2): how many of the attributes a skilled advisor would explore (listed above) did the advisor actually raise, in substance if not the exact wording? 0 = none/one; 1 = some; 2 = most or all
+- pacing (0-2): 0 = pressed on sensitive topics in a way that caused withdrawal or discomfort; 1 = adequate but rushed; 2 = paced appropriately for this student's disclosure pattern, including backing off if the student showed reluctance
+
+3. COLLABORATIVE CONDUCT (two sub-scores):
+- options_not_directives (0-1): did the advisor present options for the student to choose from, rather than prescribing a single directive solution?
+- escalation_boundaries (0-1): if any sensitive out-of-scope topic arose (disability, mental health crisis, harassment), did the advisor respect the student's decline to discuss it without pushing further? Score 1 by default if no such topic arose.
+
+4. GUIDANCE QUALITY (0-2, once for the whole session):
+0 = No support options or guidance discussed
+1 = Generic sympathy or encouragement, no concrete option
+2 = A specific, relevant option offered (named service, load reduction, extension, referral) plausibly matched to what was disclosed or to the known academic record
+
+5. FOLLOW-UP COMMITMENT (0-1, once for the whole session):
+0 = No agreement on any next step, or the student did not commit to a suggested action
+1 = The student explicitly agreed to a specific, named next step
+
+Respond with ONLY a JSON object in exactly this form:
+{expected}"""
+
+
+def _score_of(item):
+    try:
+        return int(item.get("score", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _total_score(judged):
+    total = sum(_score_of(d) for d in judged.get("disclosure", []))
+    qt = judged.get("question_technique", {})
+    total += sum(_score_of(qt.get(k, {})) for k in ("open_vs_leading", "design_intent_coverage", "pacing"))
+    cc = judged.get("collaborative_conduct", {})
+    total += sum(_score_of(cc.get(k, {})) for k in ("options_not_directives", "escalation_boundaries"))
+    total += _score_of(judged.get("guidance_quality", {}))
+    total += _score_of(judged.get("follow_up_commitment", {}))
+    return total
+
+
+def run_debrief_judge(persona, transcript):
+    """Run the debrief judge JUDGE_RUNS times at nonzero temperature and
+    average numeric scores across runs (self-consistency). Evidence and
+    reasoning text are kept from whichever run's total score is closest
+    to the mean, as a representative sample rather than an average of text.
+    Returns (aggregated_result, raw_runs) - raw_runs is kept for scrutability
+    and appendix inclusion."""
+    prompt = build_debrief_judge_prompt(persona, transcript)
+    raw_runs = []
+
+    for _ in range(JUDGE_RUNS):
+        try:
+            raw = call_claude(
+                "You are an evaluation assistant. Reply with valid JSON only.",
+                [{"role": "user", "content": prompt}],
+                max_tokens=1500,
+                temperature=JUDGE_TEMPERATURE,
+            )
+            cleaned = re.sub(r"```json|```", "", raw).strip()
+            judged = json.loads(cleaned)
+            raw_runs.append(judged)
+        except (json.JSONDecodeError, Exception) as e:
+            app.logger.error("Debrief judge run failed: %s", e)
+
+    if not raw_runs:
+        return None, []
+
+    totals = [_total_score(j) for j in raw_runs]
+    mean_total = sum(totals) / len(totals)
+    representative = raw_runs[min(range(len(raw_runs)), key=lambda i: abs(totals[i] - mean_total))]
+
+    def avg_score(get_fn):
+        vals = [get_fn(j) for j in raw_runs]
+        return round(sum(vals) / len(vals), 1)
+    rep_disclosure = representative.get("disclosure", [])
+
+    def rep_field(i, field, default=""):
+        return rep_disclosure[i].get(field, default) if i < len(rep_disclosure) else default
+
+    aggregated = {
+        "disclosure": [
+            {
+                "attribute": rep_field(i, "attribute", label),
+                "score": avg_score(lambda j, i=i: _score_of(j["disclosure"][i]) if i < len(j.get("disclosure", [])) else 0),
+                "evidence": rep_field(i, "evidence"),
+                "reasoning": rep_field(i, "reasoning"),
+            }
+            for i, (_, label) in enumerate(HIDDEN_ATTRIBUTES)
+        ],
+        "question_technique": {
+            k: {
+                "score": avg_score(lambda j, k=k: _score_of(j.get("question_technique", {}).get(k, {}))),
+                "evidence": representative.get("question_technique", {}).get(k, {}).get("evidence", ""),
+                "reasoning": representative.get("question_technique", {}).get(k, {}).get("reasoning", ""),
+            }
+            for k in ("open_vs_leading", "design_intent_coverage", "pacing")
+        },
+        "collaborative_conduct": {
+            k: {
+                "score": avg_score(lambda j, k=k: _score_of(j.get("collaborative_conduct", {}).get(k, {}))),
+                "evidence": representative.get("collaborative_conduct", {}).get(k, {}).get("evidence", ""),
+                "reasoning": representative.get("collaborative_conduct", {}).get(k, {}).get("reasoning", ""),
+            }
+            for k in ("options_not_directives", "escalation_boundaries")
+        },
+        "guidance_quality": {
+            "score": avg_score(lambda j: _score_of(j.get("guidance_quality", {}))),
+            "evidence": representative.get("guidance_quality", {}).get("evidence", ""),
+            "reasoning": representative.get("guidance_quality", {}).get("reasoning", ""),
+        },
+        "follow_up_commitment": {
+            "score": avg_score(lambda j: _score_of(j.get("follow_up_commitment", {}))),
+            "evidence": representative.get("follow_up_commitment", {}).get("evidence", ""),
+            "reasoning": representative.get("follow_up_commitment", {}).get("reasoning", ""),
+        },
+        "total_score": round(mean_total, 1),
+        "max_score": 20,
+        "run_totals": totals,
+    }
+    return aggregated, raw_runs
+
 
 @app.route("/api/debrief", methods=["POST"])
 def api_debrief():
@@ -556,56 +816,20 @@ def api_debrief():
         for m in state["messages"]
     )
 
-    # Only the withheld attributes are scored. The academic data layer was shown
-    # to the advisor in the pre-session brief, so "eliciting" it is not a
-    # meaningful measure of anything.
-    attribute_block = "\n".join(
-        f"- {label}: {persona['stressor_label'] + ' - ' + persona['stressor_detail'] if k == 'stressor' else persona[k]}"
-        for k, label in HIDDEN_ATTRIBUTES
-    )
-    expected = json.dumps(
-        [{"attribute": label, "elicited": False, "evidence": ""} for _, label in HIDDEN_ATTRIBUTES]
-    )
-
-    judge_prompt = f"""Here is a transcript of an academic advising practice session.
-
-The student's true profile for the withheld attributes is:
-{attribute_block}
-
-Transcript:
-{transcript}
-
-For each withheld attribute, decide whether the advisor drew it out during the
-session. Count it as elicited only if the student actually disclosed it in the
-transcript, not if the advisor merely gestured at the topic. Quote the student
-turn that shows it, or leave evidence empty.
-
-Respond with ONLY a JSON array in exactly this form:
-{expected}"""
-
     try:
-        raw = call_claude(
-            "You are an evaluation assistant. Reply with valid JSON only.",
-            [{"role": "user", "content": judge_prompt}],
-            max_tokens=700,
-            temperature=0,
-        )
-        cleaned = re.sub(r"```json|```", "", raw).strip()
-        elicitation = json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        app.logger.error("Debrief judge returned unparseable JSON: %s", e)
-        elicitation = []
+        aggregated, raw_runs = run_debrief_judge(persona, transcript)
     except Exception as e:
-        app.logger.error("Debrief judge call failed: %s", e)
-        elicitation = []
+        app.logger.error("Debrief scoring failed entirely: %s", e)
+        aggregated, raw_runs = None, []
 
-    state["elicitation"] = elicitation
+    state["debrief_score"] = aggregated
+    state["debrief_judge_runs"] = raw_runs
     state["ended_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     persist(state)
 
     return jsonify({
         "persona": public_persona(persona),
-        "elicitation": elicitation,
+        "debrief_score": aggregated,
         "self_rating": state["self_rating"],
         "full_profile": [
             {"label": label,

@@ -269,6 +269,87 @@
   .scale button.selected { background: #3B5F52; border-color: #3B5F52; color: #fff; }
   .scale-ends { display: flex; justify-content: space-between; font-size: 12px; color: #6B6455; }
   .rating-recall { font-size: 13px; color: #6B6455; margin-bottom: 4px; }
+  .score-total {
+    text-align: center;
+    padding: 16px 0 20px;
+    border-bottom: 1px solid #EEE9DC;
+    margin-bottom: 16px;
+  }
+  .score-total .big {
+    font-family: Georgia, serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: #3B5F52;
+  }
+  .score-total .out-of {
+    font-size: 14px;
+    color: #6B6455;
+  }
+  .score-category {
+    margin-bottom: 18px;
+  }
+  .score-category-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .score-category-head .cat-name {
+    font-family: Georgia, serif;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .score-category-head .cat-score {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3B5F52;
+  }
+  .score-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #F2EFE5;
+  }
+  .score-item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .score-item-label {
+    font-size: 13px;
+    color: #22261F;
+  }
+  .score-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .score-pill.s0 { background: #F5E1DE; color: #A6433A; }
+  .score-pill.s1 { background: #FBEFD6; color: #A67C3B; }
+  .score-pill.s2 { background: #E9F0E5; color: #4E7A4F; }
+  .score-pill.s3 { background: #DCEBDF; color: #2F6B3E; }
+  .score-evidence {
+    font-size: 12px;
+    color: #6B6455;
+    margin: 5px 0 2px;
+    font-style: italic;
+  }
+  .score-reasoning {
+    font-size: 12px;
+    color: #9A9384;
+    margin: 0;
+  }
+  .run-agreement {
+    font-size: 11px;
+    color: #9A9384;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+
+
 </style>
 </head>
 <body>
@@ -373,10 +454,17 @@
     <div id="view-debrief" class="hidden">
       <h3 id="debriefName" style="font-family:Georgia,serif; font-size:18px; margin-bottom:16px;"></h3>
       <p class="rating-recall" id="ratingRecall"></p>
+
+      <div class="score-total" id="scoreTotal"></div>
+
       <div class="section-label personal">What the model held</div>
       <div id="fullProfileRows"></div>
-      <div class="section-label academic">What you drew out</div>
-      <div id="elicitationRows"><p style="font-size:13px; color:#9A9384;">Reviewing the transcript...</p></div>
+
+      <div class="section-label academic" style="margin-top:20px;">Session evaluation</div>
+      <div id="debriefScoreBody">
+        <p style="font-size:13px; color:#9A9384;">Reviewing the transcript...</p>
+      </div>
+
       <div style="margin-top:24px;">
         <button onclick="resetAll()">Start new session</button>
       </div>
@@ -657,6 +745,43 @@ async function submitRating() {
   showDebrief();
 }
 
+function scorePillClass(score, max) {
+  // Normalise to a 0-3 colour band regardless of the item's actual max,
+  // so a 0-1 item and a 0-3 item both read sensibly at a glance.
+  if (max <= 0) return "s0";
+  const ratio = score / max;
+  if (ratio <= 0) return "s0";
+  if (ratio < 0.5) return "s1";
+  if (ratio < 1) return "s2";
+  return "s3";
+}
+
+function scoreItemHTML(label, item, max) {
+  if (!item) return "";
+  const score = item.score ?? 0;
+  const pillClass = scorePillClass(score, max);
+  return `
+    <div class="score-item">
+      <div class="score-item-head">
+        <span class="score-item-label">${label}</span>
+        <span class="score-pill ${pillClass}">${score} / ${max}</span>
+      </div>
+      ${item.evidence ? `<p class="score-evidence">"${item.evidence}"</p>` : ""}
+      ${item.reasoning ? `<p class="score-reasoning">${item.reasoning}</p>` : ""}
+    </div>`;
+}
+
+function categoryHTML(title, itemsHTML, categoryScore, categoryMax) {
+  return `
+    <div class="score-category">
+      <div class="score-category-head">
+        <span class="cat-name">${title}</span>
+        <span class="cat-score">${categoryScore} / ${categoryMax}</span>
+      </div>
+      ${itemsHTML}
+    </div>`;
+}
+
 async function showDebrief() {
   setStage("debrief");
   document.getElementById("debriefName").textContent = "Debrief: " + currentPersona.name;
@@ -664,7 +789,7 @@ async function showDebrief() {
   const res = await fetch("/api/debrief", { method: "POST" });
   const data = await res.json();
   if (data.error) {
-    document.getElementById("elicitationRows").innerHTML =
+    document.getElementById("debriefScoreBody").innerHTML =
       `<p class="error">${data.error}</p>`;
     return;
   }
@@ -675,21 +800,51 @@ async function showDebrief() {
   document.getElementById("fullProfileRows").innerHTML =
     (data.full_profile || []).map(r => rowHTML([r.label, r.value])).join("");
 
-  const rows = data.elicitation || [];
-  if (rows.length === 0) {
-    document.getElementById("elicitationRows").innerHTML =
-      '<p style="font-size:13px; color:#9A9384;">The transcript could not be reviewed automatically. The full profile above is still shown.</p>';
+  const score = data.debrief_score;
+  if (!score) {
+    document.getElementById("scoreTotal").innerHTML = "";
+    document.getElementById("debriefScoreBody").innerHTML =
+      '<p style="font-size:13px; color:#9A9384;">The transcript could not be scored automatically. The full profile above is still shown.</p>';
     return;
   }
-  document.getElementById("elicitationRows").innerHTML = rows.map(r => `
-    <div class="row">
-      <span class="label">${r.attribute}</span>
-      <span class="value" style="font-weight:600; color:${r.elicited ? "#3E7A4F" : "#A6433A"};">
-        ${r.elicited ? "Drawn out" : "Not drawn out"}
-      </span>
-    </div>
-    ${r.evidence ? `<p style="font-size:12px; color:#6B6455; margin:2px 0 10px; font-style:italic;">${r.evidence}</p>` : ""}
-  `).join("");
+
+  document.getElementById("scoreTotal").innerHTML = `
+    <span class="big">${score.total_score}</span><span class="out-of"> / ${score.max_score}</span>`;
+
+  const disclosureItems = (score.disclosure || [])
+    .map(d => scoreItemHTML(d.attribute, d, 3))
+    .join("");
+  const disclosureTotal = (score.disclosure || []).reduce((s, d) => s + (d.score || 0), 0);
+
+  const qt = score.question_technique || {};
+  const questionItems = [
+    scoreItemHTML("Open vs. leading questions", qt.open_vs_leading, 2),
+    scoreItemHTML("Coverage of what a skilled advisor would explore", qt.design_intent_coverage, 2),
+    scoreItemHTML("Pacing", qt.pacing, 2),
+  ].join("");
+  const questionTotal = ["open_vs_leading", "design_intent_coverage", "pacing"]
+    .reduce((s, k) => s + (qt[k]?.score || 0), 0);
+
+  const cc = score.collaborative_conduct || {};
+  const conductItems = [
+    scoreItemHTML("Presented options, not directives", cc.options_not_directives, 1),
+    scoreItemHTML("Respected escalation boundaries", cc.escalation_boundaries, 1),
+  ].join("");
+  const conductTotal = ["options_not_directives", "escalation_boundaries"]
+    .reduce((s, k) => s + (cc[k]?.score || 0), 0);
+
+  const guidanceItem = scoreItemHTML("Guidance quality", score.guidance_quality, 2);
+  const followUpItem = scoreItemHTML("Follow-up commitment", score.follow_up_commitment, 1);
+
+  document.getElementById("debriefScoreBody").innerHTML =
+    categoryHTML("Disclosure", disclosureItems, disclosureTotal, 9) +
+    categoryHTML("Question technique", questionItems, questionTotal, 6) +
+    categoryHTML("Collaborative conduct", conductItems, conductTotal, 2) +
+    categoryHTML("Guidance quality", guidanceItem, score.guidance_quality?.score || 0, 2) +
+    categoryHTML("Follow-up commitment", followUpItem, score.follow_up_commitment?.score || 0, 1) +
+    (score.run_totals
+      ? `<p class="run-agreement">Judge run scores: ${score.run_totals.join(", ")} (averaged above)</p>`
+      : "");
 }
 
 async function resetAll() {
