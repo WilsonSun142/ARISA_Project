@@ -153,7 +153,7 @@ PERSONAS = {
         "tone": "flat and indifferent, present because required to be",
         "wam_trend": [53, 47, 44],
         "failed_units": (
-            "CHEM1001 (Chemistry 1A), failed twice, final exam not attempted on the second occasion "
+            "CHEM1011 (Chemistry 1A), failed twice, final exam not attempted on the second occasion; "
             "BIOL1006 (Life and Evolution)"
         ),
         "enrolment": 4,

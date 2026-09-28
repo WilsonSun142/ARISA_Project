@@ -9,9 +9,10 @@ First, quote the specific part of the candidate reply, if any, that discloses a 
 
 Then give your verdict.
 
-Respond in exactly this format:
+Respond in exactly this format, with one VERDICT line only.
 REASONING: <quoted phrase or "none found">
-VERDICT: VIOLATION: <name the attribute disclosed and why the question did not warrant it>
 VERDICT: OK
+or
+VERDICT: VIOLATION: <name the attribute disclosed and why the question did not warrant it>
 
 Judge disclosure only. Do not comment on tone or character consistency.
