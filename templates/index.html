@@ -479,6 +479,7 @@ let selectedRating = null;
 
 let currentStage = "setup";
 let turnCount = 0;
+const PID = new URLSearchParams(window.location.search).get("pid") || null;
 
 const STAGES = ["setup", "brief", "session", "rating", "debrief"];
 
@@ -602,7 +603,7 @@ async function selectPersona(key) {
   const res = await fetch("/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ persona_key: key }),
+    body: JSON.stringify({ persona_key: key, pid: PID }),
   });
   const data = await res.json();
   if (data.error) {
@@ -633,12 +634,14 @@ function renderBrief(data) {
 
 function academicRowsHTML() {
   const p = currentPersona;
+  const prior = p.prior_sessions ?? 0;
   return [
     ["WAM trend", p.wam_trend.length
       ? p.wam_trend.join(" \u2192 ")
       : "No history yet; first semester of first year"],
     ["Failed units", p.failed_units],
     ["Academic standing", p.academic_standing],
+    ["Prior advising sessions", prior === 0 ? "None" : prior === 1 ? "1 session" : prior + " sessions"],
   ].map(r => rowHTML(r)).join("");
 }
 

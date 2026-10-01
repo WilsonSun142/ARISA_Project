@@ -355,11 +355,13 @@ def build_system_prompt(persona):
         wam_str = " -> ".join(str(w) for w in persona["wam_trend"]) + " (declining)"
     else:
         wam_str = "no history yet; this is your first semester of first year"
-    warmup_note = (
-    "\n- This overrides the rules above about holding back: you are "
-    "cooperative and forthcoming, and answer general questions with "
-    "useful detail, including your personal context."
-    )
+    warmup_note = ""
+    if persona.get("warmup"):
+        warmup_note = (
+            "\n- This overrides the rules above about holding back: you are "
+            "cooperative and forthcoming, and answer general questions with "
+            "useful detail, including your personal context."
+        )
     if persona.get("warmup"):
         warmup_note = (
             "\n- You are cooperative and forthcoming. Answer general questions "
@@ -437,8 +439,8 @@ def generate_checked_reply(persona, messages):
     system_prompt = build_system_prompt(persona)
     verifier_prompt = build_verifier_prompt(persona)
     recent_context = "\n".join(
-    f"{'Advisor' if m['role'] == 'user' else persona['name']}: {m['content']}"
-    for m in messages[-6:]
+        f"{'Advisor' if m['role'] == 'user' else persona['name']}: {m['content']}"
+        for m in messages
     )
     working_messages = list(messages)
     feedback = None
@@ -461,7 +463,7 @@ def generate_checked_reply(persona, messages):
         raw_verdict = call_claude(
             verifier_prompt,
             [{"role": "user", "content": (
-                f"Recent conversation:\n{recent_context}\n\n"
+                f"Conversation so far:\n{recent_context}\n\n"
                 f"Candidate reply: {reply}"
             )}],
             max_tokens=300,
@@ -552,6 +554,9 @@ def api_generate():
     if key not in PERSONAS:
         return jsonify({"error": "Unknown persona. Pick one from the list."}), 400
     state = new_state(key)
+    pid = request.json.get("pid")
+    if isinstance(pid, str) and re.fullmatch(r"P0[1-9]", pid):
+        state["pid"] = pid
     persona = state["persona"]
     return jsonify({
         "persona": brief_persona(persona),
