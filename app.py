@@ -449,7 +449,7 @@ def generate_checked_reply(persona, messages):
                 f"Advisor's message: {advisor_message}\n\n"
                 f"Candidate reply: {reply}"
             )}],
-            max_tokens=300
+            max_tokens=300,
             temperature=0,
         ).strip()
 
