@@ -91,6 +91,7 @@ PERSONAS = {
         "academic_standing": "Show Cause - required to show good cause why re-enrolment should be permitted",
         "prior_sessions": 0,
         "help_seeking": "minimises difficulties when asked directly, opens up only under specific questioning",
+        "disclosure_trigger": "a specific question about work, hours, or money; downplays at first but admits the truth if the advisor follows up",
         "design_intent": [
             "How many hours is she actually working, and when?",
             "Is employment financially necessary or partially optional?",
@@ -126,6 +127,7 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 1,
         "help_seeking": "attended one voluntary advising session earlier this semester, after his parent's death, but did not follow through on referrals",
+        "disclosure_trigger": "the advisor noticing his change in results and giving him room, without pushing; once he feels heard he shares what happened",
         "design_intent": [
             "What has changed this semester compared to his previous strong performance?",
             "Has something happened personally that has affected his ability to study?",
@@ -162,6 +164,7 @@ PERSONAS = {
         "academic_standing": "Academic Caution - identified as not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "offers nothing voluntarily, will acknowledge with brief answers if asked directly with genuine curiosity",
+        "disclosure_trigger": "genuine curiosity about how she feels about her degree and uni life, without judgement",
         "design_intent": [
             "Is there an external stressor driving the disengagement, or is this motivational?",
             "What was her expectation of the degree and how does it differ from reality?",
@@ -199,6 +202,7 @@ PERSONAS = {
         "academic_standing": "Academic Caution - identified as not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "gives vague answers to personal questions, matter-of-fact rather than emotional if disclosed",
+        "disclosure_trigger": "a direct question about home, family, or what fills his week; answers honestly and matter-of-factly",
         "design_intent": [
             "What is making a typical week difficult to manage?",
             "Is there a caring or family responsibility that affects his availability?",
@@ -232,6 +236,7 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "articulate about academic symptoms, avoids discussing family situation unless directly asked",
+        "disclosure_trigger": "a question about what has changed in her life outside study, or the advisor acknowledging how she is feeling",
         "design_intent": [
             "What has changed in her personal life that coincides with the academic decline?",
             "Is the family situation ongoing and actively affecting her concentration?",
@@ -273,6 +278,7 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "will not raise the isolation unless the advisor's own language signals it is safe to, otherwise attributes the decline to vague 'motivation' issues",
+        "disclosure_trigger": "inclusive, non-assuming language and questions about their social life at uni; opens up once it feels safe",
         "design_intent": [
             "What does a typical week look like socially, not just academically?",
             "Has Frankie found any groups, clubs, or peers at university they feel comfortable with?",
@@ -310,6 +316,7 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "proactive, volunteers information readily and expands willingly when asked general questions",
+        "disclosure_trigger": "any question; shares openly from the start",
         "warmup": True,
     },
 }
@@ -348,7 +355,11 @@ def build_system_prompt(persona):
         wam_str = " -> ".join(str(w) for w in persona["wam_trend"]) + " (declining)"
     else:
         wam_str = "no history yet; this is your first semester of first year"
-    warmup_note = ""
+    warmup_note = (
+    "\n- This overrides the rules above about holding back: you are "
+    "cooperative and forthcoming, and answer general questions with "
+    "useful detail, including your personal context."
+    )
     if persona.get("warmup"):
         warmup_note = (
             "\n- You are cooperative and forthcoming. Answer general questions "
@@ -373,6 +384,7 @@ def build_system_prompt(persona):
         stressor_label=persona["stressor_label"],
         stressor_detail=persona["stressor_detail"],
         help_seeking=persona["help_seeking"],
+        disclosure_trigger=persona.get("disclosure_trigger", "a direct, specific question"),
         warmup_note=warmup_note,
     )
 
@@ -424,7 +436,10 @@ def generate_checked_reply(persona, messages):
     disclosure rather than trait consistency. See thesis Section 3.3."""
     system_prompt = build_system_prompt(persona)
     verifier_prompt = build_verifier_prompt(persona)
-    advisor_message = messages[-1]["content"]
+    recent_context = "\n".join(
+    f"{'Advisor' if m['role'] == 'user' else persona['name']}: {m['content']}"
+    for m in messages[-6:]
+    )
     working_messages = list(messages)
     feedback = None
     reply = None
@@ -446,7 +461,7 @@ def generate_checked_reply(persona, messages):
         raw_verdict = call_claude(
             verifier_prompt,
             [{"role": "user", "content": (
-                f"Advisor's message: {advisor_message}\n\n"
+                f"Recent conversation:\n{recent_context}\n\n"
                 f"Candidate reply: {reply}"
             )}],
             max_tokens=300,
