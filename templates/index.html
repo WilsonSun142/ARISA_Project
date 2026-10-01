@@ -416,9 +416,7 @@
           <div class="avatar sm" id="sessionAvatar"></div>
           <h3 id="sessionName" style="font-family:Georgia,serif; font-size:18px; margin:0;"></h3>
         </div>
-        <button class="secondary" onclick="togglePrompt()">Show system prompt</button>
       </div>
-      <pre id="promptView" class="hidden"></pre>
       <details class="record-strip" id="recordStrip" open>
         <summary>Academic record</summary>
         <div class="body" id="sessionRecordRows"></div>
@@ -569,7 +567,6 @@ function clearSessionUI() {
   document.getElementById("chatBox").innerHTML =
     '<p class="placeholder">Start the conversation, e.g. "Hi, how are you going?"</p>';
   document.getElementById("endBtn").disabled = true;
-  document.getElementById("promptView").classList.add("hidden");
   document.getElementById("setupError").textContent = "";
 }
 
@@ -613,7 +610,6 @@ async function selectPersona(key) {
     return;
   }
   currentPersona = data.persona;
-  currentPrompt = data.system_prompt;
   currentKey = key;
   selectedRating = null;
   turnCount = 0;
@@ -654,14 +650,9 @@ function startSession() {
   const initials = currentPersona.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
   document.getElementById("sessionAvatar").innerHTML = avatarHTML(currentKey, initials);
   document.getElementById("sessionName").textContent = currentPersona.name;
-  document.getElementById("promptView").textContent = currentPrompt;
   document.getElementById("sessionRecordRows").innerHTML = academicRowsHTML();
   setStage("session");
   document.getElementById("userInput").focus();
-}
-
-function togglePrompt() {
-  document.getElementById("promptView").classList.toggle("hidden");
 }
 
 async function sendMessage() {

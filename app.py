@@ -125,7 +125,7 @@ PERSONAS = {
         "enrolment": 4,
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 1,
-        "help_seeking": "attended a prior session but did not follow through on referrals",
+        "help_seeking": "attended one voluntary advising session earlier this semester, after his parent's death, but did not follow through on referrals",
         "design_intent": [
             "What has changed this semester compared to his previous strong performance?",
             "Has something happened personally that has affected his ability to study?",
@@ -147,13 +147,15 @@ PERSONAS = {
         "stressor_label": "Motivational disengagement",
         "stressor_detail": (
             "No identified external stressor. Stopped attending mid-semester "
-            "by choice. Degree is not what she expected and she has not "
-            "formed an alternative direction. Offers nothing voluntarily."
+            "by choice and did not attempt the final exam on her second "
+            "attempt at CHEM1011. Degree is not what she expected and she "
+            "has not formed an alternative direction. Offers nothing "
+            "voluntarily."
         ),
         "tone": "flat and indifferent, present because required to be",
         "wam_trend": [53, 47, 44],
         "failed_units": (
-            "CHEM1011 (Chemistry 1A), failed twice, final exam not attempted on the second occasion; "
+            "CHEM1011 (Fundamentals of Chemistry 1A), failed twice; "
             "BIOL1006 (Life and Evolution)"
         ),
         "enrolment": 4,
@@ -239,9 +241,9 @@ PERSONAS = {
         ],
 
     },
-    "finn": {
+    "frankie": {
         "id": "F",
-        "name": "Finn Nguyen",
+        "name": "Frankie Nguyen",
         "age": 20,
         "gender": "Non-binary",
         "pronouns": "they/them",
@@ -256,7 +258,7 @@ PERSONAS = {
             "tutors. Finds university social spaces exhausting and has not "
             "found a peer group who understands their situation. Correcting "
             "people repeatedly has come to feel like more effort than it is "
-            "worth, so Finn has largely stopped trying and withdrawn "
+            "worth, so Frankie has largely stopped trying and withdrawn "
             "instead. Will not raise the isolation unless the advisor's own "
             "language signals it is safe to - otherwise attributes the "
             "decline to vague 'motivation' issues."
@@ -273,9 +275,9 @@ PERSONAS = {
         "help_seeking": "will not raise the isolation unless the advisor's own language signals it is safe to, otherwise attributes the decline to vague 'motivation' issues",
         "design_intent": [
             "What does a typical week look like socially, not just academically?",
-            "Has Finn found any groups, clubs, or peers at university they feel comfortable with?",
+            "Has Frankie found any groups, clubs, or peers at university they feel comfortable with?",
             "Is something making it harder to connect with people here than expected?",
-            "Is Finn aware that university LGBTQ+ and diversity support services exist?",
+            "Is Frankie aware that university LGBTQ+ and diversity support services exist?",
             "What would make university feel less exhausting to navigate day to day?",
         ],
 
@@ -287,7 +289,7 @@ PERSONAS = {
         "id": "W",
         "name": "Jamie Lee",
         "age": 18,
-        "gender": "Non-binary",
+        "gender": "Man",
         "year": 1,
         "faculty": "Science",
         "degree": "B.Science",
@@ -305,7 +307,7 @@ PERSONAS = {
             "CHEM1011 (Fundamentals of Chemistry 1A), MATH1061 (Mathematics 1A)"
         ),
         "enrolment": 4,
-         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
+        "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "proactive, volunteers information readily and expands willingly when asked general questions",
         "warmup": True,
@@ -320,7 +322,7 @@ PERSONAS = {
 # benchmark and OLM are both built around.
 BRIEF_PUBLIC_FIELDS = {
     "id", "name", "age", "gender", "pronouns", "year", "faculty", "degree",
-    "tone", "wam_trend", "failed_units", "enrolment", "academic_standing",
+    "wam_trend", "failed_units", "enrolment", "academic_standing",
     "prior_sessions", "warmup",
 }
 
@@ -447,7 +449,7 @@ def generate_checked_reply(persona, messages):
                 f"Advisor's message: {advisor_message}\n\n"
                 f"Candidate reply: {reply}"
             )}],
-            max_tokens=200,
+            max_tokens=300
             temperature=0,
         ).strip()
 
@@ -538,7 +540,6 @@ def api_generate():
     persona = state["persona"]
     return jsonify({
         "persona": brief_persona(persona),
-        "system_prompt": build_system_prompt(persona),
         "hidden_labels": [label for _, label in HIDDEN_ATTRIBUTES],
         "year_label": year_label(persona["year"]),
     })
