@@ -285,6 +285,7 @@ PERSONAS = {
             "Is something making it harder to connect with people here than expected?",
             "Is Frankie aware that university LGBTQ+ and diversity support services exist?",
             "What would make university feel less exhausting to navigate day to day?",
+            "Did the advisor use neutral or correct language (e.g. the student's name or they/them) and avoid assuming gender or identity?",
         ],
 
     },
