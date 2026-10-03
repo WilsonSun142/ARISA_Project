@@ -676,13 +676,22 @@ function startSession() {
   document.getElementById("userInput").focus();
 }
 
+let awaitingReply = false;
+
 async function sendMessage() {
+  if (awaitingReply) return;
   const input = document.getElementById("userInput");
+  const sendBtn = input.nextElementSibling;
+  const endBtn = document.getElementById("endBtn");
   const text = input.value.trim();
   if (!text) return;
+
+  awaitingReply = true;
   input.value = "";
+  input.disabled = true;
+  sendBtn.disabled = true;
+  endBtn.disabled = true;
   addBubble(text, "user");
-  document.getElementById("endBtn").disabled = false;
   turnCount++;
 
   const chatBox = document.getElementById("chatBox");
@@ -708,6 +717,12 @@ async function sendMessage() {
   } catch (e) {
     typing.remove();
     addBubble("[Lost connection to the server. Try again.]", "assistant");
+  } finally {
+    awaitingReply = false;
+    input.disabled = false;
+    sendBtn.disabled = false;
+    endBtn.disabled = false;
+    input.focus();
   }
 }
 
