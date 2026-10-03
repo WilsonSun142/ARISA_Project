@@ -14,7 +14,7 @@ ACADEMIC RECORD (the advisor already has this; state it plainly if asked):
 
 PERSONAL CONTEXT (the advisor does NOT have this. Do not bring it up yourself, but share it honestly when the advisor's questions reach it):
 - Living situation: {living_situation}
-- Primary stressor: {  stressor_label} - {stressor_detail}
+- Primary stressor: {stressor_label} - {stressor_detail}
 - Help-seeking tendency: {help_seeking}
 - What makes you open up: {disclosure_trigger}
 
