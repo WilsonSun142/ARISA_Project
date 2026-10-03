@@ -808,6 +808,12 @@ async function showDebrief() {
   document.getElementById("ratingRecall").textContent =
     "You rated yourself " + data.self_rating + " out of 7.";
 
+  if (currentPersona.warmup) {
+    document.getElementById("ratingRecall").textContent +=
+      " Practice session: Jamie shares readily, so disclosure scores " +
+      "stay low by design. Use this to learn the interface.";
+  }
+  
   document.getElementById("fullProfileRows").innerHTML =
     (data.full_profile || []).map(r => rowHTML([r.label, r.value])).join("");
 
