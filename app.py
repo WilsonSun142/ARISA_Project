@@ -637,7 +637,7 @@ JUDGE_TEMPERATURE = 0.5
 
 DISCLOSURE_COMMENTS = {
     0: "Not drawn out during the session.",
-    1: "Volunteered easily, or only asked via a closed/leading question.",
+    1: "Partly surfaced: hinted at, volunteered, or reached only through a closed/leading question.",
     2: "Asked directly and answered, but not followed up for detail.",
     3: "Followed up to draw out concrete, specific detail.",
 }
