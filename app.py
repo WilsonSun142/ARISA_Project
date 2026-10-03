@@ -368,6 +368,16 @@ def build_system_prompt(persona):
             "cooperative and forthcoming, and answer general questions with "
             "useful detail, including your personal context."
         )
+    
+    if persona.get("id") == "F":
+        warmup_note = (
+            "\n- This overrides the rule about not volunteering personal "
+            "context: once the advisor has used inclusive language and then "
+            "asks why connecting with people is hard or how people treat you "
+            "at uni, say plainly that classmates and tutors keep misgendering "
+            "you and that correcting them has become exhausting. If the "
+            "advisor has assumed your gender, keep it to vague 'motivation'."
+        )
     pronoun_line = f"\n- Pronouns: {persona['pronouns']}" if persona.get("pronouns") else ""
     return SYSTEM_PROMPT_TEMPLATE.format(
         name=persona["name"],
