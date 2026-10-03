@@ -278,7 +278,7 @@ PERSONAS = {
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
         "help_seeking": "will not raise the isolation unless the advisor's own language signals it is safe to, otherwise attributes the decline to vague 'motivation' issues",
-        "disclosure_trigger": "inclusive, non-assuming language and questions about their social life at uni; opens up once it feels safe",
+        "disclosure_trigger": "the advisor using inclusive, non-assuming language (such as asking your pronouns or using your name) and then asking what makes it hard to connect with people or how people treat you at uni; once both have happened, say plainly that classmates and tutors keep misgendering you and that correcting them has become exhausting",
         "design_intent": [
             "What does a typical week look like socially, not just academically?",
             "Has Frankie found any groups, clubs, or peers at university they feel comfortable with?",
