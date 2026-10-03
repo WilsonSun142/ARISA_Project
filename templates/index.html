@@ -369,6 +369,11 @@
   <div class="content">
 
     <div id="view-setup">
+      <p class="group-sub" style="margin-bottom:20px;">
+        All sessions are set two weeks before Semester 2, after Semester 1
+        results have been released. Each student has not met their
+        progression requirements.
+      </p>
       <div class="group">
         <h3 class="group-head">Start here</h3>
         <p class="group-sub">
@@ -429,6 +434,10 @@
                onkeydown="if(event.key==='Enter')sendMessage()" />
         <button onclick="sendMessage()">Send</button>
       </div>
+      <p class="group-sub" style="margin:0 0 10px;">
+        End the session once you understand why the student is not meeting
+        progression requirements and you have agreed a next step together.
+      </p>
       <button class="danger" id="endBtn" onclick="goToRating()" disabled>End session</button>
     </div>
 
@@ -451,17 +460,25 @@
 
     <div id="view-debrief" class="hidden">
       <h3 id="debriefName" style="font-family:Georgia,serif; font-size:18px; margin-bottom:16px;"></h3>
+      <p class="group-sub" style="margin-bottom:12px;">
+        Start here: compare your self-rating with your score, then read
+        what the student was holding back. The full breakdown is below.
+      </p>
       <p class="rating-recall" id="ratingRecall"></p>
 
       <div class="score-total" id="scoreTotal"></div>
 
-      <div class="section-label personal">What the model held</div>
+      <div class="section-label personal">What the student was holding back</div>
       <div id="fullProfileRows"></div>
 
-      <div class="section-label academic" style="margin-top:20px;">Session evaluation</div>
-      <div id="debriefScoreBody">
-        <p style="font-size:13px; color:#9A9384;">Reviewing the transcript...</p>
-      </div>
+      <details style="margin-top:20px;">
+        <summary class="section-label academic" style="cursor:pointer;">
+          Full score breakdown
+        </summary>
+        <div id="debriefScoreBody">
+          <p style="font-size:13px; color:#9A9384;">Reviewing the transcript...</p>
+        </div>
+      </details>
 
       <div style="margin-top:24px;">
         <button onclick="resetAll()">Start new session</button>
@@ -636,9 +653,10 @@ function academicRowsHTML() {
   const p = currentPersona;
   const prior = p.prior_sessions ?? 0;
   return [
-    ["WAM trend", p.wam_trend.length
+    ["WAM trend", p.wam_trend.length > 1
       ? p.wam_trend.join(" \u2192 ")
-      : "No history yet; first semester of first year"],
+      : p.wam_trend.length === 1
+        ? p.wam_trend[0] + " (one semester completed)": "No results yet"],
     ["Failed units", p.failed_units],
     ["Academic standing", p.academic_standing],
     ["Prior advising sessions", prior === 0 ? "None" : prior === 1 ? "1 session" : prior + " sessions"],

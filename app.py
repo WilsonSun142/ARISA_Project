@@ -107,7 +107,7 @@ PERSONAS = {
         "gender": "Man",
         "year": 3,
         "faculty": "Business School",
-        "degree": "B.Commerce",
+        "degree": "B.Commerce (Finance)",
         "differentiator": "Loss of a parent; previously strong student; needs space before disclosure",
         "living_situation": "lives at home with family in North Shore Sydney",
         "stressor_label": "Passing away of a family member",
@@ -143,7 +143,7 @@ PERSONAS = {
         "gender": "Woman",
         "year": 2,
         "faculty": "Science",
-        "degree": "B.Science",
+        "degree": "B.Science (Chemistry)",
         "differentiator": "Motivational disengagement without external stressor; requires values exploration not referral",
         "living_situation": "student accommodation on campus, limited peer connection",
         "stressor_label": "Motivational disengagement",
@@ -254,7 +254,7 @@ PERSONAS = {
         "pronouns": "they/them",
         "year": 2,
         "faculty": "Business School",
-        "degree": "B.Commerce",
+        "degree": "B.Commerce (Accounting)",
         "differentiator": "Frequently misgendered and socially isolated; tests whether the advisor's own language creates safety before questioning begins",
         "living_situation": "lives at home with family in south-west Sydney",
         "stressor_label": "Social isolation and repeated misgendering",
@@ -298,7 +298,7 @@ PERSONAS = {
         "gender": "Man",
         "year": 1,
         "faculty": "Science",
-        "degree": "B.Science",
+        "degree": "B.Science (Chemistry)",
         "differentiator": "Familiarisation with the interface and conversation flow",
         "living_situation": "lives with family, short commute to campus",
         "stressor_label": "Adjusting to university workload",
@@ -308,7 +308,7 @@ PERSONAS = {
             "and volunteers information readily when asked general questions."
         ),
         "tone": "open, cooperative, a little anxious but forthcoming",
-        "wam_trend": [],
+        "wam_trend": [48],
         "failed_units": (
             "CHEM1011 (Fundamentals of Chemistry 1A), MATH1061 (Mathematics 1A)"
         ),
@@ -351,21 +351,18 @@ def year_label(year):
 
 
 def build_system_prompt(persona):
-    if persona["wam_trend"]:
+    if len(persona["wam_trend"]) > 1:
         wam_str = " -> ".join(str(w) for w in persona["wam_trend"]) + " (declining)"
+    elif persona["wam_trend"]:
+        wam_str = f"{persona['wam_trend'][0]} after your first semester"
     else:
-        wam_str = "no history yet; this is your first semester of first year"
+        wam_str = "no results yet"
     warmup_note = ""
     if persona.get("warmup"):
         warmup_note = (
             "\n- This overrides the rules above about holding back: you are "
             "cooperative and forthcoming, and answer general questions with "
             "useful detail, including your personal context."
-        )
-    if persona.get("warmup"):
-        warmup_note = (
-            "\n- You are cooperative and forthcoming. Answer general questions "
-            "with useful detail rather than deflecting."
         )
     pronoun_line = f"\n- Pronouns: {persona['pronouns']}" if persona.get("pronouns") else ""
     return SYSTEM_PROMPT_TEMPLATE.format(
