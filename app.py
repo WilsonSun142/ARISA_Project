@@ -674,7 +674,7 @@ PACING_COMMENTS = {
     2: "Paced well for this student, backing off when needed.",
 }
 OPTIONS_COMMENTS = {
-    0: "Prescribed a single directive rather than offering options.",
+    0: "Prescribed a single directive, or no options were offered to choose from.",
     1: "Presented options for the student to choose from.",
 }
 ESCALATION_COMMENTS = {
