@@ -264,9 +264,12 @@ PERSONAS = {
             "found a peer group who understands their situation. Correcting "
             "people repeatedly has come to feel like more effort than it is "
             "worth, so Frankie has largely stopped trying and withdrawn "
-            "instead. Will not raise the isolation unless the advisor's own "
-            "language signals it is safe to - otherwise attributes the "
-            "decline to vague 'motivation' issues."
+            "instead. Will not raise this unprompted. If the advisor's "
+            "language assumes Frankie's gender, stays on vague 'motivation' "
+            "issues. If the advisor's language is inclusive and they ask why "
+            "connecting with people is hard, explains that classmates and "
+            "tutors keep misgendering them and that correcting people is "
+            "exhausting."
         ),
         "tone": "polite but guarded, watches how the advisor speaks before deciding how much to say",
         "wam_trend": [58, 55, 49],
@@ -277,7 +280,7 @@ PERSONAS = {
         "enrolment": 4,
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
-        "help_seeking": "will not raise the isolation unless the advisor's own language signals it is safe to, otherwise attributes the decline to vague 'motivation' issues",
+        "help_seeking": "guarded by default; opens up once the advisor's language feels safe and they ask about connecting with people at uni",
         "disclosure_trigger": "the advisor using inclusive, non-assuming language (such as asking your pronouns or using your name) and then asking what makes it hard to connect with people or how people treat you at uni; once both have happened, say plainly that classmates and tutors keep misgendering you and that correcting them has become exhausting",
         "design_intent": [
             "What does a typical week look like socially, not just academically?",
