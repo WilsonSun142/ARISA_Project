@@ -795,7 +795,11 @@ function categoryHTML(title, itemsHTML, categoryScore, categoryMax) {
 
 async function showDebrief() {
   setStage("debrief");
-  document.getElementById("debriefName").textContent = "Debrief: " + currentPersona.name;
+  document.getElementById("ratingRecall").textContent = "";
+  document.getElementById("fullProfileRows").innerHTML = "";
+  document.getElementById("scoreTotal").innerHTML = "";
+  document.getElementById("debriefScoreBody").innerHTML =
+    '<p style="font-size:13px; color:#9A9384;">Scoring your session, ' + 'this takes about 10 seconds...</p>';
 
   const res = await fetch("/api/debrief", { method: "POST" });
   const data = await res.json();
@@ -813,7 +817,7 @@ async function showDebrief() {
       " Practice session: Jamie shares readily, so disclosure scores " +
       "stay low by design. Use this to learn the interface.";
   }
-  
+
   document.getElementById("fullProfileRows").innerHTML =
     (data.full_profile || []).map(r => rowHTML([r.label, r.value])).join("");
 
