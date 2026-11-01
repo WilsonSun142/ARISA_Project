@@ -107,7 +107,7 @@ PERSONAS = {
         "gender": "Man",
         "year": 3,
         "faculty": "Business School",
-        "degree": "B.Commerce",
+        "degree": "B.Commerce (Finance)",
         "differentiator": "Loss of a parent; previously strong student; needs space before disclosure",
         "living_situation": "lives at home with family in North Shore Sydney",
         "stressor_label": "Passing away of a family member",
@@ -143,7 +143,7 @@ PERSONAS = {
         "gender": "Woman",
         "year": 2,
         "faculty": "Science",
-        "degree": "B.Science",
+        "degree": "B.Science (Chemistry)",
         "differentiator": "Motivational disengagement without external stressor; requires values exploration not referral",
         "living_situation": "student accommodation on campus, limited peer connection",
         "stressor_label": "Motivational disengagement",
@@ -254,7 +254,7 @@ PERSONAS = {
         "pronouns": "they/them",
         "year": 2,
         "faculty": "Business School",
-        "degree": "B.Commerce",
+        "degree": "B.Commerce (Accounting)",
         "differentiator": "Frequently misgendered and socially isolated; tests whether the advisor's own language creates safety before questioning begins",
         "living_situation": "lives at home with family in south-west Sydney",
         "stressor_label": "Social isolation and repeated misgendering",
@@ -264,9 +264,12 @@ PERSONAS = {
             "found a peer group who understands their situation. Correcting "
             "people repeatedly has come to feel like more effort than it is "
             "worth, so Frankie has largely stopped trying and withdrawn "
-            "instead. Will not raise the isolation unless the advisor's own "
-            "language signals it is safe to - otherwise attributes the "
-            "decline to vague 'motivation' issues."
+            "instead. Will not raise this unprompted. If the advisor's "
+            "language assumes Frankie's gender, stays on vague 'motivation' "
+            "issues. If the advisor's language is inclusive and they ask why "
+            "connecting with people is hard, explains that classmates and "
+            "tutors keep misgendering them and that correcting people is "
+            "exhausting."
         ),
         "tone": "polite but guarded, watches how the advisor speaks before deciding how much to say",
         "wam_trend": [58, 55, 49],
@@ -277,14 +280,15 @@ PERSONAS = {
         "enrolment": 4,
         "academic_standing": "At-risk - identified as at risk of not meeting progression requirements",
         "prior_sessions": 0,
-        "help_seeking": "will not raise the isolation unless the advisor's own language signals it is safe to, otherwise attributes the decline to vague 'motivation' issues",
-        "disclosure_trigger": "inclusive, non-assuming language and questions about their social life at uni; opens up once it feels safe",
+        "help_seeking": "guarded by default; opens up once the advisor's language feels safe and they ask about connecting with people at uni",
+        "disclosure_trigger": "the advisor using inclusive, non-assuming language (such as asking your pronouns or using your name) and then asking what makes it hard to connect with people or how people treat you at uni; once both have happened, say plainly that classmates and tutors keep misgendering you and that correcting them has become exhausting",
         "design_intent": [
             "What does a typical week look like socially, not just academically?",
             "Has Frankie found any groups, clubs, or peers at university they feel comfortable with?",
             "Is something making it harder to connect with people here than expected?",
             "Is Frankie aware that university LGBTQ+ and diversity support services exist?",
             "What would make university feel less exhausting to navigate day to day?",
+            "Did the advisor use neutral or correct language (e.g. the student's name or they/them) and avoid assuming gender or identity?",
         ],
 
     },
@@ -298,7 +302,7 @@ PERSONAS = {
         "gender": "Man",
         "year": 1,
         "faculty": "Science",
-        "degree": "B.Science",
+        "degree": "B.Science (Chemistry)",
         "differentiator": "Familiarisation with the interface and conversation flow",
         "living_situation": "lives with family, short commute to campus",
         "stressor_label": "Adjusting to university workload",
@@ -351,10 +355,12 @@ def year_label(year):
 
 
 def build_system_prompt(persona):
-    if persona["wam_trend"]:
+    if len(persona["wam_trend"]) > 1:
         wam_str = " -> ".join(str(w) for w in persona["wam_trend"]) + " (declining)"
+    elif persona["wam_trend"]:
+        wam_str = f"{persona['wam_trend'][0]} after your first semester"
     else:
-        wam_str = "no history yet; this is your first semester of first year"
+        wam_str = "no results yet"
     warmup_note = ""
     if persona.get("warmup"):
         warmup_note = (
@@ -362,10 +368,18 @@ def build_system_prompt(persona):
             "cooperative and forthcoming, and answer general questions with "
             "useful detail, including your personal context."
         )
-    if persona.get("warmup"):
+    
+    if persona.get("id") == "F":
         warmup_note = (
-            "\n- You are cooperative and forthcoming. Answer general questions "
-            "with useful detail rather than deflecting."
+            "\n- This overrides the rule about not volunteering personal "
+            "context. How safe you feel decides what you share. If the "
+            "advisor has assumed your gender, you keep it to vague "
+            "'motivation'. If the advisor's language has been inclusive and "
+            "they ask why connecting with people is hard or how people treat "
+            "you, you tell them plainly that classmates and tutors keep "
+            "misgendering you and that correcting them has become exhausting."
+            "\n- Never describe these conditions, the advisor's language, or "
+            "yourself in the third person. Reply only as Frankie speaking."
         )
     pronoun_line = f"\n- Pronouns: {persona['pronouns']}" if persona.get("pronouns") else ""
     return SYSTEM_PROMPT_TEMPLATE.format(
@@ -640,7 +654,7 @@ JUDGE_TEMPERATURE = 0.5
 
 DISCLOSURE_COMMENTS = {
     0: "Not drawn out during the session.",
-    1: "Volunteered easily, or only asked via a closed/leading question.",
+    1: "Partly surfaced: hinted at, volunteered, or reached only through a closed/leading question.",
     2: "Asked directly and answered, but not followed up for detail.",
     3: "Followed up to draw out concrete, specific detail.",
 }
@@ -660,7 +674,7 @@ PACING_COMMENTS = {
     2: "Paced well for this student, backing off when needed.",
 }
 OPTIONS_COMMENTS = {
-    0: "Prescribed a single directive rather than offering options.",
+    0: "Prescribed a single directive, or no options were offered to choose from.",
     1: "Presented options for the student to choose from.",
 }
 ESCALATION_COMMENTS = {
