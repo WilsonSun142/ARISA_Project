@@ -308,7 +308,7 @@ PERSONAS = {
             "and volunteers information readily when asked general questions."
         ),
         "tone": "open, cooperative, a little anxious but forthcoming",
-        "wam_trend": [],
+        "wam_trend": [48],
         "failed_units": (
             "CHEM1011 (Fundamentals of Chemistry 1A), MATH1061 (Mathematics 1A)"
         ),
