@@ -294,7 +294,7 @@ PERSONAS = {
     },
     # Warm-up persona. Not part of the six-persona set: cooperative, no
     # disclosure resistance, used to familiarise the advisor with the interface
-    # before harder personas. See thesis section on session sequencing.
+    # before harder personas. See thesis Chapter 4, Defining the Set of Personas.
     "jamie": {
         "id": "W",
         "name": "Jamie Lee",
@@ -449,7 +449,7 @@ def call_claude(system_prompt, messages, max_tokens=500, model=None, temperature
 def generate_checked_reply(persona, messages):
     """Generator-verifier loop mirroring DuetSim (Luo et al., 2024) and
     Ji et al.'s (2025) self-questioning, adapted to check PERSONAL CONTEXT
-    disclosure rather than trait consistency. See thesis Section 3.3."""
+    disclosure, not trait consistency. See thesis Chapter 5, Reducing Character and Disclosure Failures."""
     system_prompt = build_system_prompt(persona)
     verifier_prompt = build_verifier_prompt(persona)
     recent_context = "\n".join(
@@ -608,7 +608,7 @@ def api_self_rating():
     Advisor self-rating, captured after the conversation and before any
     comparison data is shown. Ordering is deliberate: the rating must reflect
     the advisor's own sense of the session, uncontaminated by the elicitation
-    table. See thesis section on OLM interface design.
+    table. See thesis Section 3.2, Interface Design.
     """
     state = get_state()
     if not state:
@@ -633,7 +633,7 @@ def api_self_rating():
 # comment from the lookup tables below, so the advisor still gets an
 # explanation for every score, without the model needing to generate one.
 #
-# Categories map onto the three advisor learning pillars (Section 1.4) and
+# Categories map onto the three advisor learning pillars (Section 3.1) and
 # the per-persona design-intent questions (Chapter 4): disclosure
 # specificity tests self-reflexive elicitation skill; question technique
 # and collaborative conduct test respectful/collaborative practice;
@@ -643,10 +643,9 @@ def api_self_rating():
 # not just information capture.
 #
 # The judge is run JUDGE_RUNS times and scores are averaged (self-
-# consistency, per Wang et al., 2022, already cited in Section 4.2 via
-# Kim et al., 2025), to reduce single-run judge noise - an explicit
-# response to the "benchmark scoring is qualitative" limitation in
-# Section 7.1. Averaging is now cheap since each run is integers-only.
+# consistency, per Wang et al., 2023, see thesis Section 3.4.2), to
+# reduce single-run judge noise. See also the limitations in Section 9.2.
+# Averaging is cheap since each run returns integers only.
 # ---------------------------------------------------------------------------
 
 JUDGE_RUNS = 3
